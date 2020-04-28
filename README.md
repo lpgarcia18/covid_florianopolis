@@ -4,5 +4,7 @@ Está página busca juntar esforços de técnicos da Gerência de Inteligência 
 
 ## Descrição da Situação
 
+Florianópolis teve o primeiro caso confirmado da nova covid em 
+
 
 ## Impacto das Intervenções
