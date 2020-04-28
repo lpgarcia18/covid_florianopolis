@@ -3,6 +3,7 @@ title: "situacao_covid"
 author: "Leandro Pereira Garcia"
 date: "April 28, 2020"
 output: html_document
+exclude: ["CNAME", "Rakefile", "MIT-LICENSE", "README.md", "TODO.taskpaper"]
 ---
 
 ```{r setup, include=FALSE}
