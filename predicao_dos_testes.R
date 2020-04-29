@@ -128,20 +128,12 @@ cum_train <- cum_train %>%
 	summarise(CASOS = sum(NUMERO, na.rm = T))
 cum_train$CUM_CASOS <- cumsum(cum_train$CASOS) 
 cum_train$DADOS <- "Atuais"
-cum_train$INFECTADOS <- cum_train$CASOS * 5 #80% da população sem diagnóstico
-cum_train$DT_REMOV <- cum_train$Inicio+14
-REMOVIDO <- cum_train[,c(5,6)]
-names(REMOVIDO) <- c("REMOVIDO","Inicio") 
-cum_train <- merge(cum_train, REMOVIDO, by = "Inicio", all.x = T)
-cum_train$REMOVIDO <- ifelse(is.na(cum_train$REMOVIDO),0,cum_train$REMOVIDO)
-cum_train$SUSCEPTIVEL <- 500000 - (cum_train$INFECTADOS + cum_train$REMOVIDO)
-
 cum_train <- subset(cum_train, cum_train$Inicio > as.Date("2020-02-01", format = "%Y-%m-%d") &
 		    	cum_train$Inicio < Sys.Date())
 
 
 
-#Dados totais, atuiais + preditos
+#Dados totais = atuiais + preditos
 predic_base$DADOS <- "Preditos"
 train_base$DADOS <- "Atuais"
 test_base$DADOS <- "Atuais"
@@ -150,34 +142,20 @@ base_final <- rbind(base_final, test_base[,names(test_base) != "PREDICAO"]) %>% 
 base_final <- merge(base_final, covid_id, by = c("ID", "Inicio"), all = T)
 cum_base <- subset(base_final, base_final$Resultado == "confirmado")
 cum_base$NUMERO <- 1
+cum_base$Inicio <- as.Date(cum_base$Inicio, format = "%Y-%m-%d")
 cum_base <- cum_base %>%
 	group_by(Inicio) %>%
 	summarise(CASOS = sum(NUMERO, na.rm = T))
 cum_base$CUM_CASOS <- cumsum(cum_base$CASOS) 
 cum_base$DADOS <- "Preditos"
-cum_base$INFECTADOS <- cum_base$CASOS * 5 #80% da população sem diagnóstico
-cum_base$DT_REMOV <- as.Date(cum_base$Inicio, format = "%Y-%m-%d")+14
-REMOVIDO <- cum_base[,c(5,6)]
-names(REMOVIDO) <- c("REMOVIDO","Inicio") 
-cum_base <- merge(cum_base, REMOVIDO, by = "Inicio", all.x = T)
-cum_base$REMOVIDO <- ifelse(is.na(cum_base$REMOVIDO),0,cum_base$REMOVIDO)
-cum_base$SUSCEPTIVEL <- 500000 - (cum_base$INFECTADOS + cum_base$REMOVIDO)
-cum_base$Inicio <- as.Date(cum_base$Inicio, format = "%Y-%m-%d")
 cum_base <- subset(cum_base, cum_base$Inicio > as.Date("2020-02-01", format = "%Y-%m-%d") &
 		    	cum_base$Inicio < Sys.Date())
 
-
-
-
 cum_base <- rbind(cum_train, cum_base) %>% as.data.frame()
-cum_base$DT_REMOV <- NULL
-cum_base$DT_RECUPERACAO <- NULL
-names(cum_base) <- c("DATA", "INFECTADOS_AMOSTRA", "INFECTADOS_AMOSTRA_CUM", "DADOS",
-		     "INFECTADOS", "REMOVIDOS", "SUSCEPTIVEIS")
 
-cum_base <- subset(cum_base, !is.na(cum_base$DATA))
+cum_base <- subset(cum_base, !is.na(cum_base$Inicio))
 
-ggplot(cum_base, aes(as.Date(DATA), INFECTADOS_AMOSTRA_CUM, group = DADOS, color = DADOS))+
+ggplot(cum_base, aes(as.Date(Inicio), CUM_CASOS, group = DADOS, color = DADOS))+
 	geom_line()+
 	theme_bw()+
 	labs(y = "Número de Casos", 
@@ -186,7 +164,7 @@ ggplot(cum_base, aes(as.Date(DATA), INFECTADOS_AMOSTRA_CUM, group = DADOS, color
 	scale_x_date(date_breaks = "1 day",   date_labels = "%d/%m/%Y")+
   	theme(axis.text.x = element_text(angle=45, hjust = 1))
 
-ggplot(cum_base, aes(as.Date(DATA), INFECTADOS, group = DADOS, color = DADOS))+
+ggplot(cum_base, aes(as.Date(Inicio), CASOS, group = DADOS, color = DADOS))+
 	geom_line()+
 	theme_bw()+
 	labs(y = "Número de Casos", 
@@ -195,14 +173,10 @@ ggplot(cum_base, aes(as.Date(DATA), INFECTADOS, group = DADOS, color = DADOS))+
 	scale_x_date(date_breaks = "1 day",   date_labels = "%d/%m/%Y")+
   	theme(axis.text.x = element_text(angle=45, hjust = 1))
 
-write.csv(cum_base, "covid_atuais_preditos_sir.csv", row.names = F)
+write.csv(cum_base, "dados/covid_atuais_preditos_sir.csv", row.names = F)
 
 cum_pred <- subset(cum_base, cum_base$DADOS == "Preditos")
-write.csv(cum_base, "covid_preditos_sir.csv", row.names = F)
-	
-
-
-
+write.csv(cum_base, "dados/covid_preditos_sir.csv", row.names = F)
 	
 
 
