@@ -155,6 +155,8 @@ cum_base <- rbind(cum_train, cum_base) %>% as.data.frame()
 
 cum_base <- subset(cum_base, !is.na(cum_base$Inicio))
 
+
+# Plotando resultados -----------------------------------------------------
 ggplot(cum_base, aes(as.Date(Inicio), CUM_CASOS, group = DADOS, color = DADOS))+
 	geom_line()+
 	theme_bw()+
@@ -173,10 +175,11 @@ ggplot(cum_base, aes(as.Date(Inicio), CASOS, group = DADOS, color = DADOS))+
 	scale_x_date(date_breaks = "1 day",   date_labels = "%d/%m/%Y")+
   	theme(axis.text.x = element_text(angle=45, hjust = 1))
 
-write.csv(cum_base, "dados/covid_atuais_preditos_sir.csv", row.names = F)
 
+# Exportando base ---------------------------------------------------------
+write.csv(cum_base, "dados/covid_atuais_preditos.csv", row.names = F)
 cum_pred <- subset(cum_base, cum_base$DADOS == "Preditos")
-write.csv(cum_base, "dados/covid_preditos_sir.csv", row.names = F)
+write.csv(cum_base, "dados/covid_preditos.csv", row.names = F)
 	
 
 
