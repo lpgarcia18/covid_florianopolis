@@ -15,9 +15,19 @@ library(parallelMap)
 
 # Importanto bases ---------------------------------------------------------------
 covid <- read_csv("dados/covid_ajustado.csv")
-covid$FAIXA_ETARIA <- NULL
+populacao <- read_excel("dados/demografia/Estima_Pop_Genero_2000_a_2023/Estima_Pop_Genero_2000_a_2023_ULS.xlsx", 
+    sheet = "Est_Pessoas2000_2030")
+homem <- read_excel("dados/demografia/Estima_Pop_Genero_2000_a_2023/Estima_Pop_Genero_2000_a_2023_ULS.xlsx", 
+    sheet = "Est_Homens2000_2030")
+mulher <- read_excel("dados/demografia/Estima_Pop_Genero_2000_a_2023/Estima_Pop_Genero_2000_a_2023_ULS.xlsx", 
+    sheet = "Est_Mulheres2000_2030")
+
+
+
 
 # Transformando base ------------------------------------------------------
+covid$FAIXA_ETARIA <- NULL #Trabalhar com a idade e não com a faixa etária
+
 covid[,!(names(covid) %in% c("ID", "INICIO_SINTOMAS", "IDADE"))] <- sapply(covid[,!(names(covid) %in% c("ID", "INICIO_SINTOMAS", "IDADE"))], as.factor) %>% as.data.frame()
 covid$INICIO_SINTOMAS <- as.numeric(covid$INICIO_SINTOMAS)#Transformando em número, pois o learner do mlr não trabalha com data
 
@@ -184,9 +194,9 @@ ggplot(cum_base, aes(as.Date(INICIO_SINTOMAS), CASOS, group = DADOS, color = DAD
 
 
 # Exportando base ---------------------------------------------------------
-write.csv(cum_base, "dados/covid_atuais_preditos.csv", row.names = F)
+write.csv(cum_base, "dados/covid_atuais_preditos.csv", row.names = F, fileEncoding = "UTF-8")
 cum_pred <- subset(cum_base, cum_base$DADOS == "Totais")
-write.csv(cum_base, "dados/covid_preditos.csv", row.names = F)
+write.csv(cum_base, "dados/covid_preditos.csv", row.names = F, fileEncoding = "UTF-8")
 	
 
 

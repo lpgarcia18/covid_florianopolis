@@ -9,8 +9,7 @@ library(tidyverse)
 library(reshape2)
 
 # Importanto bases --------------------------------------------------------
-covid <- read_csv("dados/covid_anonimizado.csv", 
-    locale = locale(encoding = "WINDOWS-1252"))
+covid <- read_csv("dados/covid_anonimizado.csv")
 
 # Transformando base ------------------------------------------------------
 
@@ -96,4 +95,4 @@ summary(covid)
 
 
 # Exportando base ---------------------------------------------------------
-write.csv(covid, "dados/covid_ajustado.csv", row.names = F)
+write.csv(covid, "dados/covid_ajustado.csv", row.names = F, fileEncoding = "UTF-8")
