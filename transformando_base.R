@@ -8,6 +8,8 @@ library(readr)
 library(tidyverse)
 library(reshape2)
 
+# Comentário André
+
 # Importanto bases --------------------------------------------------------
 covid <- read_csv("dados/covid_anonimizado.csv", 
     locale = locale(encoding = "WINDOWS-1252"))
