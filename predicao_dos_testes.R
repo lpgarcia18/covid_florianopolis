@@ -15,16 +15,18 @@ library(parallelMap)
 
 # Importanto bases ---------------------------------------------------------------
 covid <- read_csv("dados/covid_ajustado.csv")
+covid$FAIXA_ETARIA <- NULL
 
 # Transformando base ------------------------------------------------------
-covid[,!(names(covid) %in% c("ID"))] <- sapply(covid[,!(names(covid) %in% c("ID"))], as.factor) %>% as.data.frame()
+covid[,!(names(covid) %in% c("ID", "INICIO_SINTOMAS", "IDADE"))] <- sapply(covid[,!(names(covid) %in% c("ID", "INICIO_SINTOMAS", "IDADE"))], as.factor) %>% as.data.frame()
+covid$INICIO_SINTOMAS <- as.numeric(covid$INICIO_SINTOMAS)#Transformando em número, pois o learner do mlr não trabalha com data
 
 # Formação das bases de treino, teste e predição --------------------------
-train_test_base <- subset(covid, covid$Resultado == "descartado" |
-	       	      covid$Resultado == "confirmado")
-train_test_base$Resultado <- factor(train_test_base$Resultado, levels = c("confirmado", "descartado"))
+train_test_base <- subset(covid, covid$RESULTADO == "descartado" |
+	       	      covid$RESULTADO == "confirmado")
+train_test_base$RESULTADO <- factor(train_test_base$RESULTADO, levels = c("confirmado", "descartado"))
 set.seed(1)
-indice <- createDataPartition(train_test_base$Resultado, p = 0.7, list=FALSE)
+indice <- createDataPartition(train_test_base$RESULTADO, p = 0.7, list=FALSE)
 
 #Base de treino
 train_base <- train_test_base[indice,]
@@ -35,17 +37,17 @@ test_base <- train_test_base[-indice,]
 summary(test_base)
 
 #Base para predição
-predic_base <- subset(covid, !(covid$Resultado %in% c("confirmado", "descartado")))
-predic_base$Resultado <- NULL
+predic_base <- subset(covid, !(covid$RESULTADO %in% c("confirmado", "descartado")))
+predic_base$RESULTADO <- NULL
 summary(predic_base)
 
 
 # Realizando benchmarking de algoritmos de classificação ------------------
 parallelStartSocket(4)
 
-mod1_task <- makeClassifTask(data = train_base[,!(names(train_base) %in% c("ID", "Inicio"))], target = "Resultado")#Diversos algoritmos não trabalham com variáveis com muitas categorias e com datas por isso Início foi retirado
-confirmados <- sum(train_base$Resultado == "confirmado")
-descartados <- sum(train_base$Resultado == "descartado")
+mod1_task <- makeClassifTask(data = train_base[,!(names(train_base) %in% c("ID"))], target = "RESULTADO")#Diversos algoritmos não trabalham com variáveis com muitas categorias e com datas por isso Início foi retirado
+confirmados <- sum(train_base$RESULTADO == "confirmado")
+descartados <- sum(train_base$RESULTADO == "descartado")
 
 ## Como há muitos mais casos descartados que confirmados, oversampling, undersampling e smote foram testados
 mod1_task_over <- oversample(mod1_task, rate = descartados/confirmados) 
@@ -93,7 +95,7 @@ plotBMRBoxplots(benc_under, measure = acc)
 plotBMRBoxplots(benc_over, measure = acc)
 plotBMRBoxplots(benc_smote, measure = acc)
 
-# Predizendo o resultado dos testes ---------------------------------------
+# Predizendo o RESULTADO dos testes ---------------------------------------
 ## Escolheu-se o algoritmo e o learner que produziram a maior mediana de acurácia e possuiam a menor variação 
 ## na análise de benchmarking
 
@@ -104,32 +106,34 @@ confusionMatrix(data = result_train$pred$data$response, reference = result_train
 
 set.seed(1)
 mod_pred <- mlr::train(mod1_task_smote, learner = 'classif.randomForestSRC')
-test_base$PREDICAO <- predict(mod_pred, newdata = test_base[, names(test_base) != "Resultado"])$data[,1]
-confusionMatrix(data = test_base$PREDICAO, reference = test_base$Resultado)
-confusionMatrix(data = test_base$PREDICAO, reference = test_base$Resultado, mode = "prec_recall")
+test_base$PREDICAO <- predict(mod_pred, newdata = test_base[, names(test_base) != "RESULTADO"])$data[,1]
+confusionMatrix(data = test_base$PREDICAO, reference = test_base$RESULTADO)
+confusionMatrix(data = test_base$PREDICAO, reference = test_base$RESULTADO, mode = "prec_recall")
 
-predic_base$Resultado <- predict(mod_pred, newdata = predic_base[,names(predic_base) != "ID"])$data[,1]
-predic_base$Resultado <- as.character(predic_base$Resultado)
+predic_base$RESULTADO <- predict(mod_pred, newdata = predic_base[,names(predic_base) != "ID"])$data[,1]
+predic_base$RESULTADO <- as.character(predic_base$RESULTADO)
 
 parallelStop()
 
-
+sum(predic_base$RESULTADO == "confirmado")
 
 # Plotando predição -------------------------------------------------------
 #Dados atuais
-covid_id <- covid %>% dplyr::select(ID, Inicio)
-train_test_base$Resultado <- as.character(train_test_base$Resultado)
-cum_train <- merge(train_test_base, covid_id, by = c("ID", "Inicio"), all = T)
-cum_train <- subset(cum_train, cum_train$Resultado == "confirmado")
+covid$INICIO_SINTOMAS <- as.Date(covid$INICIO_SINTOMAS, origin = "1970-01-01")
+covid_id <- covid %>% dplyr::select(ID, INICIO_SINTOMAS)
+train_test_base$RESULTADO <- as.character(train_test_base$RESULTADO)
+train_test_base$INICIO_SINTOMAS <- as.Date(train_test_base$INICIO_SINTOMAS, origin = "1970-01-01")
+cum_train <- merge(train_test_base, covid_id, by = c("ID", "INICIO_SINTOMAS"), all = T)
+cum_train <- subset(cum_train, cum_train$RESULTADO == "confirmado")
 cum_train$NUMERO <- 1
-cum_train$Inicio <- as.Date(cum_train$Inicio, format = "%Y-%m-%d")
+cum_train$INICIO_SINTOMAS <- as.Date(cum_train$INICIO_SINTOMAS, format = "%Y-%m-%d")
 cum_train <- cum_train %>%
-	group_by(Inicio) %>%
+	group_by(INICIO_SINTOMAS) %>%
 	summarise(CASOS = sum(NUMERO, na.rm = T))
 cum_train$CUM_CASOS <- cumsum(cum_train$CASOS) 
 cum_train$DADOS <- "Atuais"
-cum_train <- subset(cum_train, cum_train$Inicio > as.Date("2020-02-01", format = "%Y-%m-%d") &
-		    	cum_train$Inicio < Sys.Date())
+cum_train <- subset(cum_train, cum_train$INICIO_SINTOMAS > as.Date("2020-02-01", format = "%Y-%m-%d") &
+		    	cum_train$INICIO_SINTOMAS < Sys.Date())
 
 
 
@@ -137,27 +141,30 @@ cum_train <- subset(cum_train, cum_train$Inicio > as.Date("2020-02-01", format =
 predic_base$DADOS <- "Preditos"
 train_base$DADOS <- "Atuais"
 test_base$DADOS <- "Atuais"
+predic_base$INICIO_SINTOMAS <- as.Date(predic_base$INICIO_SINTOMAS, origin = "1970-01-01")
+train_base$INICIO_SINTOMAS <- as.Date(train_base$INICIO_SINTOMAS, origin = "1970-01-01")
+test_base$INICIO_SINTOMAS <- as.Date(test_base$INICIO_SINTOMAS, origin = "1970-01-01")
 base_final <- rbind(predic_base, train_base) %>% as.data.frame()
 base_final <- rbind(base_final, test_base[,names(test_base) != "PREDICAO"]) %>% as.data.frame()
-base_final <- merge(base_final, covid_id, by = c("ID", "Inicio"), all = T)
-cum_base <- subset(base_final, base_final$Resultado == "confirmado")
+base_final <- merge(base_final, covid_id, by = c("ID", "INICIO_SINTOMAS"), all = T)
+cum_base <- subset(base_final, base_final$RESULTADO == "confirmado")
 cum_base$NUMERO <- 1
-cum_base$Inicio <- as.Date(cum_base$Inicio, format = "%Y-%m-%d")
+cum_base$INICIO_SINTOMAS <- as.Date(cum_base$INICIO_SINTOMAS, format = "%Y-%m-%d")
 cum_base <- cum_base %>%
-	group_by(Inicio) %>%
+	group_by(INICIO_SINTOMAS) %>%
 	summarise(CASOS = sum(NUMERO, na.rm = T))
 cum_base$CUM_CASOS <- cumsum(cum_base$CASOS) 
-cum_base$DADOS <- "Preditos"
-cum_base <- subset(cum_base, cum_base$Inicio > as.Date("2020-02-01", format = "%Y-%m-%d") &
-		    	cum_base$Inicio < Sys.Date())
+cum_base$DADOS <- "Totais"
+cum_base <- subset(cum_base, cum_base$INICIO_SINTOMAS > as.Date("2020-02-01", format = "%Y-%m-%d") &
+		    	cum_base$INICIO_SINTOMAS < Sys.Date())
 
 cum_base <- rbind(cum_train, cum_base) %>% as.data.frame()
 
-cum_base <- subset(cum_base, !is.na(cum_base$Inicio))
+cum_base <- subset(cum_base, !is.na(cum_base$INICIO_SINTOMAS))
 
 
-# Plotando resultados -----------------------------------------------------
-ggplot(cum_base, aes(as.Date(Inicio), CUM_CASOS, group = DADOS, color = DADOS))+
+# Plotando RESULTADOs -----------------------------------------------------
+ggplot(cum_base, aes(as.Date(INICIO_SINTOMAS), CUM_CASOS, group = DADOS, color = DADOS))+
 	geom_line()+
 	theme_bw()+
 	labs(y = "Número de Casos", 
@@ -166,7 +173,7 @@ ggplot(cum_base, aes(as.Date(Inicio), CUM_CASOS, group = DADOS, color = DADOS))+
 	scale_x_date(date_breaks = "1 day",   date_labels = "%d/%m/%Y")+
   	theme(axis.text.x = element_text(angle=45, hjust = 1))
 
-ggplot(cum_base, aes(as.Date(Inicio), CASOS, group = DADOS, color = DADOS))+
+ggplot(cum_base, aes(as.Date(INICIO_SINTOMAS), CASOS, group = DADOS, color = DADOS))+
 	geom_line()+
 	theme_bw()+
 	labs(y = "Número de Casos", 
@@ -178,7 +185,7 @@ ggplot(cum_base, aes(as.Date(Inicio), CASOS, group = DADOS, color = DADOS))+
 
 # Exportando base ---------------------------------------------------------
 write.csv(cum_base, "dados/covid_atuais_preditos.csv", row.names = F)
-cum_pred <- subset(cum_base, cum_base$DADOS == "Preditos")
+cum_pred <- subset(cum_base, cum_base$DADOS == "Totais")
 write.csv(cum_base, "dados/covid_preditos.csv", row.names = F)
 	
 
