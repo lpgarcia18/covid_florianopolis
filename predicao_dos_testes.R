@@ -14,7 +14,9 @@ library(doParallel)
 library(parallelMap)
 
 # Importanto bases ---------------------------------------------------------------
+## Dados de suspeitos 
 covid <- read_csv("dados/covid_ajustado.csv")
+## Dados demográficos dos territórios
 populacao <- read_excel("dados/demografia/Estima_Pop_Genero_2000_a_2023/Estima_Pop_Genero_2000_a_2023_ULS.xlsx", 
     sheet = "Est_Pessoas2000_2030")
 homem <- read_excel("dados/demografia/Estima_Pop_Genero_2000_a_2023/Estima_Pop_Genero_2000_a_2023_ULS.xlsx", 
