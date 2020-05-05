@@ -16,22 +16,20 @@ library(parallelMap)
 # Importanto bases ---------------------------------------------------------------
 ## Dados de suspeitos 
 covid <- read_csv("dados/covid_ajustado.csv")
-## Dados demográficos dos territórios
-populacao <- read_excel("dados/demografia/Estima_Pop_Genero_2000_a_2023/Estima_Pop_Genero_2000_a_2023_ULS.xlsx", 
-    sheet = "Est_Pessoas2000_2030")
-homem <- read_excel("dados/demografia/Estima_Pop_Genero_2000_a_2023/Estima_Pop_Genero_2000_a_2023_ULS.xlsx", 
-    sheet = "Est_Homens2000_2030")
-mulher <- read_excel("dados/demografia/Estima_Pop_Genero_2000_a_2023/Estima_Pop_Genero_2000_a_2023_ULS.xlsx", 
-    sheet = "Est_Mulheres2000_2030")
-
 
 
 
 # Transformando base ------------------------------------------------------
 covid$FAIXA_ETARIA <- NULL #Trabalhar com a idade e não com a faixa etária
-
-covid[,!(names(covid) %in% c("ID", "INICIO_SINTOMAS", "IDADE"))] <- sapply(covid[,!(names(covid) %in% c("ID", "INICIO_SINTOMAS", "IDADE"))], as.factor) %>% as.data.frame()
+covid$TERRITORIO <- as.factor(covid$TERRITORIO)
+covid$SEXO <- as.factor(covid$SEXO)
+covid$MUNICIPIO <- as.factor(covid$MUNICIPIO)
+covid$SUBTERRITORIO <- as.factor(covid$SUBTERRITORIO)
+covid$TRIAGEM <- as.factor(covid$TRIAGEM)
+covid$RESULTADO <- as.factor(covid$RESULTADO)
+covid$RACA_COR <- as.factor(covid$RACA_COR)
 covid$INICIO_SINTOMAS <- as.numeric(covid$INICIO_SINTOMAS)#Transformando em número, pois o learner do mlr não trabalha com data
+covid$INFECTADOS_TERRITORIO <- as.numeric(covid$INFECTADOS_TERRITORIO)
 
 # Formação das bases de treino, teste e predição --------------------------
 train_test_base <- subset(covid, covid$RESULTADO == "descartado" |
@@ -53,7 +51,7 @@ predic_base <- subset(covid, !(covid$RESULTADO %in% c("confirmado", "descartado"
 predic_base$RESULTADO <- NULL
 summary(predic_base)
 
-
+train_base <- train_base[,c(1:100)]
 # Realizando benchmarking de algoritmos de classificação ------------------
 parallelStartSocket(4)
 
@@ -66,22 +64,23 @@ mod1_task_over <- oversample(mod1_task, rate = descartados/confirmados)
 mod1_task_under <- undersample(mod1_task, rate = confirmados/descartados)
 mod1_task_smote <- smote(mod1_task, rate = descartados/confirmados, nn = 5)
 
-lrns_type <- c('classif.adaboostm1',
+lrns_type <- c(#'classif.adaboostm1',
 		#'classif.bartMachine',
-		'classif.boosting',
-		'classif.gamboost',
-		'classif.gbm',
-		'classif.glmboost',
-		'classif.glmnet',
-		'classif.h2o.deeplearning',
-		'classif.h2o.gbm',
-		'classif.h2o.glm',
+		#'classif.boosting',
+		#'classif.gamboost',
+		#'classif.gbm',
+		#'classif.glmboost',
+		#'classif.glmnet',
+		#'classif.h2o.deeplearning',
+		#'classif.h2o.gbm',
+		#'classif.h2o.glm',
 		'classif.h2o.randomForest',
-		'classif.naiveBayes',
+		#'classif.naiveBayes',
 		'classif.randomForest',
 		'classif.randomForestSRC',
-		'classif.ranger',
-		'classif.svm')
+		'classif.ranger'
+		#,'classif.svm'
+		)
 
 
 lrns <- list()
@@ -112,7 +111,7 @@ plotBMRBoxplots(benc_smote, measure = acc)
 ## na análise de benchmarking
 
 set.seed(1)
-result_train <- resample(learner = 'classif.randomForestSRC', task = mod1_task_smote, resampling = cross_val, show.info = FALSE)
+result_train <- resample(learner = 'classif.randomForestSRC', task = mod1_task_over, resampling = cross_val, show.info = FALSE)
 confusionMatrix(data = result_train$pred$data$response, reference = result_train$pred$data$truth)
 confusionMatrix(data = result_train$pred$data$response, reference = result_train$pred$data$truth, mode = "prec_recall")
 
