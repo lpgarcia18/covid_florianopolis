@@ -331,6 +331,7 @@ sort(unique(covid$Territorio))
 ## Construindo variável Quantidade de Infectados (pessoas com até 14 dias de início de sintomas) por território
 covid$`Data do início dos sintomas` <- as.Date(covid$`Data do início dos sintomas`, format = "%Y-%m-%d", origin = "1970-01-01")
 infec <- covid
+infec <- subset(infec, infec$`Resultado do teste` == "confirmado")
 infec$INFECTADO <-infec$`Data do início dos sintomas` 
 INFECTADO <- table(infec$Territorio, infec$INFECTADO)
 infec$INFECTADO_1 <-infec$`Data do início dos sintomas` + 1
@@ -429,6 +430,11 @@ covid <- subset(covid, covid$IDADE != "missing")
 covid$Territorio <- as.character(covid$Territorio)
 demografia$territorio <- as.character(demografia$territorio)
 covid <- merge(covid,demografia, by.x = "Territorio",by.y = "territorio", all.y = T) #Retirando dados de outros municípios
+
+## Calculando a taxa de infectados por território
+covid$TX_INFECTADOS_TERRITORIO <- as.numeric(covid$INFECTADOS_TERRITORIO)/as.numeric(covid$`populacao populacao`)*100000
+
+
 
 ## Ajustando nome da base
 names(covid)[c(1:11)] <- c("TERRITORIO", "ID", "SEXO", "MUNICIPIO", "SUBTERRITORIO","FAIXA_ETARIA", "IDADE", "TRIAGEM", "INICIO_SINTOMAS", "RESULTADO", "RACA_COR", "INFECTADOS_TERRITORIO")
