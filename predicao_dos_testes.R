@@ -116,7 +116,7 @@ confusionMatrix(data = result_train$pred$data$response, reference = result_train
 confusionMatrix(data = result_train$pred$data$response, reference = result_train$pred$data$truth, mode = "prec_recall")
 
 set.seed(1)
-mod_pred <- mlr::train(mod1_task_smote, learner = 'classif.randomForestSRC')
+mod_pred <- mlr::train(mod1_task_over, learner = 'classif.randomForestSRC')
 test_base$PREDICAO <- predict(mod_pred, newdata = test_base[, names(test_base) != "RESULTADO"])$data[,1]
 confusionMatrix(data = test_base$PREDICAO, reference = test_base$RESULTADO)
 confusionMatrix(data = test_base$PREDICAO, reference = test_base$RESULTADO, mode = "prec_recall")
