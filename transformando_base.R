@@ -78,6 +78,7 @@ ajustar_nomes <- function(x){
 	  rm_accent() %>%                                #Remove os acentos com a funcao criada acima
 	  stringr::str_replace_all("[/' '.()]", "_") %>% #Substitui os caracteres especiais por "_"
 	  stringr::str_replace_all("_+", "_") %>%        #Substitui os caracteres especiais por "_"   
+	  stringr::str_replace_all("-", "_") %>%        #Substitui os caracteres especiais por "_"   
 	  stringr::str_replace("_$", "")                 #Substitui o caracter especiais por "_"
 	}
 
@@ -87,7 +88,6 @@ ajustar_nomes <- function(x){
 populacao <- read_excel_allsheets("dados/demografia/Estima_Pop_Genero_2000_a_2023/Estima_Pop_Genero_2000_a_2023_ULS.xlsx")
 populacao <- map(populacao,`[`,"44075")#extraindo coluna de 2020
 titulos_pop <- c("populacao", "homens", "mulheres")
-titulos_pop <- paste("populacao", titulos_pop)
 populacao <- do.call(cbind,populacao)
 names(populacao) <- titulos_pop
 
@@ -433,7 +433,7 @@ demografia$territorio <- as.character(demografia$territorio)
 covid <- merge(covid,demografia, by.x = "Territorio",by.y = "territorio", all.y = T) #Retirando dados de outros municípios
 
 ## Calculando a taxa de infectados por território
-covid$TX_INFECTADOS_TERRITORIO <- as.numeric(covid$INFECTADOS_TERRITORIO)/as.numeric(covid$`populacao populacao`)*100000
+covid$TX_INFECTADOS_TERRITORIO <- as.numeric(covid$INFECTADOS_TERRITORIO)/as.numeric(covid$populacao)*100000
 
 
 
@@ -540,10 +540,10 @@ covid <- subset(covid, covid$INICIO_SINTOMAS < (Sys.Date()+1))
 ## Extraindo dados missing que foram inseridos com a base de transito
 covid <- na.omit(covid)
 
-## Percetual de masculino
-covid$`populacao homens` <- as.numeric(as.character(covid$`populacao homens`))
-covid$`populacao mulheres` <- as.numeric(as.character(covid$`populacao mulheres`))
-covid$PERC_MASC <- covid$`populacao homens`/covid$`populacao mulheres`
+## Proporcao de masculino
+covid$homens <- as.numeric(as.character(covid$homens))
+covid$mulheres <- as.numeric(as.character(covid$mulheres))
+covid$PROP_MASC <- covid$homens/covid$mulheres
 
 ## Percentual de pessoas com 60 anos ou mais
 covid[,c(12:112)] <- apply(covid[,c(12:112)], 2,            # Specify own function within apply
