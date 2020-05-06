@@ -20,7 +20,6 @@ covid <- read_csv("dados/covid_ajustado.csv")
 
 
 # Transformando base ------------------------------------------------------
-covid$FAIXA_ETARIA <- NULL #Trabalhar com a idade e não com a faixa etária
 covid$TERRITORIO <- as.factor(covid$TERRITORIO)
 covid$SEXO <- as.factor(covid$SEXO)
 covid$MUNICIPIO <- as.factor(covid$MUNICIPIO)
@@ -30,6 +29,7 @@ covid$RESULTADO <- as.factor(covid$RESULTADO)
 covid$RACA_COR <- as.factor(covid$RACA_COR)
 covid$INICIO_SINTOMAS <- as.numeric(covid$INICIO_SINTOMAS)#Transformando em número, pois o learner do mlr não trabalha com data
 covid$INFECTADOS_TERRITORIO <- as.numeric(covid$INFECTADOS_TERRITORIO)
+
 
 # Formação das bases de treino, teste e predição --------------------------
 train_test_base <- subset(covid, covid$RESULTADO == "descartado" |
