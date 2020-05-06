@@ -540,5 +540,19 @@ covid <- subset(covid, covid$INICIO_SINTOMAS < (Sys.Date()+1))
 ## Extraindo dados missing que foram inseridos com a base de transito
 covid <- na.omit(covid)
 
+## Percetual de masculino
+covid$PERC_MASC <- covid$`populacao homens`/covid$`populacao mulheres`
+
+## Percentual de pessoas com 60 anos ou mais
+covid$PERC_60_MAIS <- rowSums(covid[,c(72:112)])/rowSums(covid[,c(12:112)])
+
+
+## Percentual de pessoas NÃO brancas
+covid$PERC_NAO_BRANCA <- rowSums(covid[,c(139)])/rowSums(covid[,c(139:143)])
+
+## Percentual de pessoas 10 anos ou menos 
+covid$PERC_ESC_10_MAIS <- rowSums(covid[,c(117:129)])/rowSums(covid[,c(117:136,138)])
+
+
 # Exportando base ---------------------------------------------------------
 write.csv(covid, "dados/covid_ajustado.csv", row.names = F, fileEncoding = "UTF-8")
