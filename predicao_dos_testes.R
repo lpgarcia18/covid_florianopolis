@@ -117,7 +117,7 @@ ps_svm <- makeParamSet(
 		  makeDiscreteParam("fw.perc", values = seq(0.2, 1, 0.05))
   	  )
 ## Estratégia de hyperparametrização - grid search
-ctrl <- makeTuneControlRandom(maxit = 10L)
+ctrl <- makeTuneControlRandom(maxit = 3L)
 ## Estratégia de ressampling do inner loop - validação cruzada com estratificação dos resultados balanceados entre as folds
 inner <- makeResampleDesc("CV", iter = 5, stratify = TRUE)
 #measures https://mlr.mlr-org.com/articles/tutorial/measures.html
@@ -146,10 +146,10 @@ tune_train <- tuneParams(learner = rf, task = mod1_task_smote, resampling = oute
 		       measure = bac, par.set = ps_rf, control = ctrl)
 
 ## Resultado na base de treino
-lrn_tra <- setHyperPars(makeFilterWrapper(learner = "classif.ranger", 
+lrn_train <- setHyperPars(makeFilterWrapper(learner = "classif.ranger", 
 					   fw.method = "FSelector_gain.ratio"), par.vals = tune_train$x)
 
-mod_train <- resample(learner = lrn_rf, task = mod1_task_smote, resampling = outer, models = TRUE, show.info = FALSE, 
+mod_train <- resample(learner = lrn_train, task = mod1_task_smote, resampling = outer, models = TRUE, show.info = FALSE, 
 		       measure = bac)
 confusionMatrix(data = mod_train$pred$data$response, reference = mod_train$pred$data$truth)
 confusionMatrix(data = mod_train$pred$data$response, reference = mod_train$pred$data$truth, mode = "prec_recall")
