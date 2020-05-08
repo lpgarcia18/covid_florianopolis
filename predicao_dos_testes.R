@@ -117,7 +117,7 @@ ps_svm <- makeParamSet(
 		  makeDiscreteParam("fw.perc", values = seq(0.2, 1, 0.05))
   	  )
 ## Estratégia de hyperparametrização - grid search
-ctrl <- makeTuneControlRandom(maxit = 3L)
+ctrl <- makeTuneControlRandom(maxit = 10L)
 ## Estratégia de ressampling do inner loop - validação cruzada com estratificação dos resultados balanceados entre as folds
 inner <- makeResampleDesc("CV", iter = 5, stratify = TRUE)
 #measures https://mlr.mlr-org.com/articles/tutorial/measures.html
@@ -156,21 +156,17 @@ confusionMatrix(data = mod_train$pred$data$response, reference = mod_train$pred$
 
 ## Resultado na base de teste - utilizando o mesmo threashold para feature selection e os hyperparamentros tunados na base de traino
 set.seed(1)
-lrn_test <- setHyperPars(makeFilterWrapper(learner = "classif.ranger", 
-					   fw.method = "FSelector_gain.ratio"), par.vals = tune_train$x)
-
 mod2_task <- makeClassifTask(data = test_base[,!(names(test_base) %in% c("ID"))], target = "RESULTADO")
 confirmados <- sum(test_base$RESULTADO == "confirmado")
 descartados <- sum(test_base$RESULTADO == "descartado")
 mod2_task_smote <- smote(mod2_task, rate = descartados/confirmados, nn = 5)
-mod_test <- resample(learner = lrn_test, task = mod2_task_smote, resampling = outer, models = TRUE, show.info = FALSE, 
-		       measure = bac)
-confusionMatrix(data = mod_test$pred$data$response, reference = mod_test$pred$data$truth)
-confusionMatrix(data = mod_test$pred$data$response, reference = mod_test$pred$data$truth, mode = "prec_recall")
+mod_test <- train(lrn_test, mod2_task)
+test_base$PREDICAO <- predict(mod_test, newdata = test_base[,names(test_base) != c("ID", "RESULTADO")])$data[,1]
+confusionMatrix(data = test_base$PREDICAO, reference = test_base$RESULTADO)
+confusionMatrix(data = test_base$PREDICAO, reference = test_base$RESULTADO, mode = "prec_recall")
 
 ## Predição dos dados faltantes
-mod_pred <- train(lrn_test, mod2_task)
-predic_base$RESULTADO <- predict(mod_pred, newdata = predic_base[,names(predic_base) != "ID"])$data[,1]
+predic_base$RESULTADO <- predict(mod_test, newdata = predic_base[,names(predic_base) != "ID"])$data[,1]
 predic_base$RESULTADO <- as.character(predic_base$RESULTADO)
 
 
