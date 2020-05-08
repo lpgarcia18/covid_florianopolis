@@ -18,17 +18,43 @@ library(parallelMap)
 covid <- read_csv("dados/covid_ajustado.csv")
 
 
+# Seleção das variáveis ------------------------------------------------
+# covid <- covid %>% 
+# 	dplyr::select(ID,
+# 		      RESULTADO,
+# 		      TERRITORIO,
+# 		      SEXO,
+# 		      MUNICIPIO,
+# 		      SUBTERRITORIO,
+# 		      TRIAGEM,
+# 		      RACA_COR,
+# 		      INICIO_SINTOMAS,
+# 		      TX_INFECTADOS_TERRITORIO,
+# 		      MEDIA_TRANSITO_LAG13,
+# 		      PROP_MASC,
+# 		      PERC_60_MAIS,
+# 		      PERC_NAO_BRANCA,
+# 		      PERC_ESC_10_MENOS)
+
+
 
 # Transformando base ------------------------------------------------------
+covid$ID <- as.character(covid$ID)
+covid$RESULTADO <- as.factor(covid$RESULTADO)
 covid$TERRITORIO <- as.factor(covid$TERRITORIO)
 covid$SEXO <- as.factor(covid$SEXO)
 covid$MUNICIPIO <- as.factor(covid$MUNICIPIO)
 covid$SUBTERRITORIO <- as.factor(covid$SUBTERRITORIO)
 covid$TRIAGEM <- as.factor(covid$TRIAGEM)
-covid$RESULTADO <- as.factor(covid$RESULTADO)
 covid$RACA_COR <- as.factor(covid$RACA_COR)
 covid$INICIO_SINTOMAS <- as.numeric(covid$INICIO_SINTOMAS)#Transformando em número, pois o learner do mlr não trabalha com data
-covid$INFECTADOS_TERRITORIO <- as.numeric(covid$INFECTADOS_TERRITORIO)
+covid$TX_INFECTADOS_TERRITORIO <- as.numeric(covid$TX_INFECTADOS_TERRITORIO)
+covid$MEDIA_TRANSITO_LAG13 <- as.numeric(covid$MEDIA_TRANSITO_LAG13)
+covid$PROP_MASC <- as.numeric(covid$PROP_MASC)
+covid$PERC_60_MAIS <- as.numeric(covid$PERC_60_MAIS)
+covid$PERC_NAO_BRANCA <- as.numeric(covid$PERC_NAO_BRANCA)
+covid$PERC_ESC_10_MENOS <- as.numeric(covid$PERC_ESC_10_MENOS)
+covid$FAIXA_ETARIA <- as.factor(covid$FAIXA_ETARIA)
 
 
 # Formação das bases de treino, teste e predição --------------------------
@@ -51,78 +77,102 @@ predic_base <- subset(covid, !(covid$RESULTADO %in% c("confirmado", "descartado"
 predic_base$RESULTADO <- NULL
 summary(predic_base)
 
-train_base <- train_base[,c(1:100)]
 # Realizando benchmarking de algoritmos de classificação ------------------
 parallelStartSocket(4)
 
 mod1_task <- makeClassifTask(data = train_base[,!(names(train_base) %in% c("ID"))], target = "RESULTADO")#Diversos algoritmos não trabalham com variáveis com muitas categorias e com datas por isso Início foi retirado
 confirmados <- sum(train_base$RESULTADO == "confirmado")
 descartados <- sum(train_base$RESULTADO == "descartado")
-
-## Como há muitos mais casos descartados que confirmados, oversampling, undersampling e smote foram testados
-mod1_task_over <- oversample(mod1_task, rate = descartados/confirmados) 
-mod1_task_under <- undersample(mod1_task, rate = confirmados/descartados)
+## Como há muitos mais casos descartados que confirmados utilizou-se smote para balanceamento
 mod1_task_smote <- smote(mod1_task, rate = descartados/confirmados, nn = 5)
 
-lrns_type <- c(#'classif.adaboostm1',
-		#'classif.bartMachine',
-		#'classif.boosting',
-		#'classif.gamboost',
-		#'classif.gbm',
-		#'classif.glmboost',
-		#'classif.glmnet',
-		#'classif.h2o.deeplearning',
-		#'classif.h2o.gbm',
-		#'classif.h2o.glm',
-		'classif.h2o.randomForest',
-		#'classif.naiveBayes',
-		'classif.randomForest',
-		'classif.randomForestSRC',
-		'classif.ranger'
-		#,'classif.svm'
-		)
+## Três algorítmos foram comparados gbm, rf e svm
+## Escolheu-se a acurárcia balanceada como métrica de maximização
+# Filtragem de features com  tuning no inner resampling loop
+## Filtro das features
+#listFilterMethods()
+gbm <- makeFilterWrapper(learner = 'classif.gbm', fw.method = "FSelector_gain.ratio") 
+rf <- makeFilterWrapper(learner = 'classif.ranger', fw.method = "FSelector_gain.ratio")
+svm <- makeFilterWrapper(learner = 'classif.ksvm', fw.method = "FSelector_gain.ratio")
 
-
-lrns <- list()
-for(i in seq_along(lrns_type)){
-	lrns[[i]] <- lrns_type[i]
-}
-
-cross_val <- makeResampleDesc("CV", iter = 5)
-
-## Escolheu-se a acurárcia como métrica de maximização
+## Paramentros a serem tunados
+ps_gbm <- makeParamSet(      
+		makeIntegerLearnerParam(id = "n.trees", lower = 1L, upper = 2000L),
+	        makeIntegerLearnerParam(id = "interaction.depth", lower = 1L, upper = 5L),
+	        makeIntegerLearnerParam(id = "n.minobsinnode", lower = 1L, upper = 3L),
+	        makeNumericLearnerParam(id = "shrinkage", lower = 0, upper = 0.5),
+	        makeNumericLearnerParam(id = "bag.fraction", lower = 0, upper = 1),
+		makeDiscreteParam("fw.perc", values = seq(0.2, 1, 0.05))
+	)
+ps_rf <- makeParamSet( 
+	      makeIntegerLearnerParam(id = "num.trees", lower = 1L, upper = 2000L),
+	      makeIntegerLearnerParam(id = "mtry", lower = 1L,upper = 10L),
+	      makeIntegerLearnerParam(id = "min.node.size", lower = 1L, upper = 10L),
+	      makeNumericLearnerParam(id = "sample.fraction", lower = 0L, upper = 1L),
+	      makeDiscreteParam("fw.perc", values = seq(0.2, 1, 0.05))
+	 )
+ps_svm <- makeParamSet(
+		  makeNumericParam("C", lower = -10, upper = 10, trafo = function(x) 10^x),
+  		  makeNumericParam("sigma", lower = -10, upper = 10, trafo = function(x) 10^x),
+		  makeDiscreteParam("fw.perc", values = seq(0.2, 1, 0.05))
+  	  )
+## Estratégia de hyperparametrização - grid search
+ctrl <- makeTuneControlRandom(maxit = 10L)
+## Estratégia de ressampling do inner loop - validação cruzada com estratificação dos resultados balanceados entre as folds
+inner <- makeResampleDesc("CV", iter = 5, stratify = TRUE)
 #measures https://mlr.mlr-org.com/articles/tutorial/measures.html
-benc <-  benchmark(tasks = mod1_task, learners = lrns, resampling = cross_val, 
-		   measures = list(acc), show.info = FALSE, models = TRUE)
-benc_under <-  benchmark(tasks = mod1_task_under, learners = lrns, resampling = cross_val, 
-			 measures = list(acc), show.info = FALSE, models = TRUE)
-benc_over <-  benchmark(tasks = mod1_task_over, learners = lrns, resampling = cross_val, 
-			measures = list(acc), show.info = FALSE, models = TRUE)
-benc_smote <-  benchmark(tasks = mod1_task_smote, learners = lrns, resampling = cross_val, 
-			 measures = list(acc), show.info = FALSE, models = TRUE)
+## learnes ajustados para filtragem e tuning
+lrn_gbm <- makeTuneWrapper(learner = gbm, resampling = inner, par.set = ps_gbm, control = ctrl,
+  show.info = FALSE, measures = bac)
+lrn_rf <- makeTuneWrapper(learner = rf, resampling = inner, par.set = ps_rf, control = ctrl,
+  show.info = FALSE, measures = bac)
+lrn_svm <- makeTuneWrapper(learner = svm, resampling = inner, par.set = ps_svm, control = ctrl,
+  show.info = FALSE, measures = bac)
+# Lista de Learners
+lrns <- list(lrn_gbm, lrn_rf, lrn_svm)
 
-plotBMRBoxplots(benc, measure = acc)
-plotBMRBoxplots(benc_under, measure = acc)
-plotBMRBoxplots(benc_over, measure = acc)
-plotBMRBoxplots(benc_smote, measure = acc)
+## Estratégia de ressampling do outer loop - validação cruzada com estratificação dos resultados balanceados entre as folds
+outer <- makeResampleDesc("CV", iter = 5, stratify = TRUE)
 
-# Predizendo o RESULTADO dos testes ---------------------------------------
-## Escolheu-se o algoritmo e o learner que produziram a maior mediana de acurácia e possuiam a menor variação 
-## na análise de benchmarking
+## Rodando o benchmark
+res <- benchmark(tasks = mod1_task_smote, learners = lrns, resampling = outer, show.info = T, models = TRUE, measures = bac)
+getBMRAggrPerformances(res, as.df = T)
+getBMRPerformances(res, as.df = T)
+plotBMRBoxplots(res, measure = bac)
 
+## Tunning com algoritmo selecionado na base de treino
 set.seed(1)
-result_train <- resample(learner = 'classif.randomForestSRC', task = mod1_task_over, resampling = cross_val, show.info = FALSE)
-confusionMatrix(data = result_train$pred$data$response, reference = result_train$pred$data$truth)
-confusionMatrix(data = result_train$pred$data$response, reference = result_train$pred$data$truth, mode = "prec_recall")
+tune_train <- tuneParams(learner = rf, task = mod1_task_smote, resampling = outer, show.info = FALSE, 
+		       measure = bac, par.set = ps_rf, control = ctrl)
 
+## Resultado na base de treino
+lrn_tra <- setHyperPars(makeFilterWrapper(learner = "classif.ranger", 
+					   fw.method = "FSelector_gain.ratio"), par.vals = tune_train$x)
+
+mod_train <- resample(learner = lrn_rf, task = mod1_task_smote, resampling = outer, models = TRUE, show.info = FALSE, 
+		       measure = bac)
+confusionMatrix(data = mod_train$pred$data$response, reference = mod_train$pred$data$truth)
+confusionMatrix(data = mod_train$pred$data$response, reference = mod_train$pred$data$truth, mode = "prec_recall")
+
+## Resultado na base de teste - utilizando o mesmo threashold para feature selection e os hyperparamentros tunados na base de traino
 set.seed(1)
-mod_pred <- mlr::train(mod1_task_over, learner = 'classif.randomForestSRC')
-test_base$PREDICAO <- predict(mod_pred, newdata = test_base[, names(test_base) != "RESULTADO"])$data[,1]
-confusionMatrix(data = test_base$PREDICAO, reference = test_base$RESULTADO)
-confusionMatrix(data = test_base$PREDICAO, reference = test_base$RESULTADO, mode = "prec_recall")
+lrn_test <- setHyperPars(makeFilterWrapper(learner = "classif.ranger", 
+					   fw.method = "FSelector_gain.ratio"), par.vals = tune_train$x)
 
+mod2_task <- makeClassifTask(data = test_base[,!(names(test_base) %in% c("ID"))], target = "RESULTADO")
+confirmados <- sum(test_base$RESULTADO == "confirmado")
+descartados <- sum(test_base$RESULTADO == "descartado")
+mod2_task_smote <- smote(mod2_task, rate = descartados/confirmados, nn = 5)
+mod_test <- resample(learner = lrn_test, task = mod2_task_smote, resampling = outer, models = TRUE, show.info = FALSE, 
+		       measure = bac)
+confusionMatrix(data = mod_test$pred$data$response, reference = mod_test$pred$data$truth)
+confusionMatrix(data = mod_test$pred$data$response, reference = mod_test$pred$data$truth, mode = "prec_recall")
+
+## Predição dos dados faltantes
+mod_pred <- train(lrn_test, mod2_task)
 predic_base$RESULTADO <- predict(mod_pred, newdata = predic_base[,names(predic_base) != "ID"])$data[,1]
 predic_base$RESULTADO <- as.character(predic_base$RESULTADO)
+
 
 parallelStop()
 
