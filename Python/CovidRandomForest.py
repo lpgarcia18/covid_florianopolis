@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 Created on Mon Apr 20 16:48:01 2020
@@ -9,100 +8,104 @@ Created on Mon Apr 20 16:48:01 2020
 import pandas as pd
 import numpy as np
 from matplotlib import pyplot as plt
-from sklearn.ensemble import RandomForestClassifier
 from imblearn.over_sampling import SMOTE
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.feature_selection import RFECV
+from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import train_test_split
-from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import StratifiedKFold
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import classification_report
+from sklearn.metrics import accuracy_score
 
 #Faz a leitura da base
 df = pd.read_csv("Dados/novo_covid_ajustado.csv")
 
 #Definindo x, y
 features = df.columns.difference(['RESULTADO'])
-x = df[features].values
-y = df['RESULTADO'].values
+x = df[features]
+y = df['RESULTADO']
+
+#Separa base treinamento e teste
+xTreino, xTeste, yTreino, yTeste = train_test_split(x, y, stratify=y, train_size=0.7, random_state=1986)
 
 #Balanceamento
-qtdeDescartados, qtdeConfirmados = df['RESULTADO'].value_counts().values
-dfDescartados = df[df['RESULTADO'] == 'descartado'] #Separa a base de descartados
-dfConfirmados = df[df['RESULTADO'] == 'confirmado'] #Separa a base de confirmados
+treino = xTreino.join(yTreino)
+qtdeDescartados = treino['RESULTADO'].value_counts()[0]
+qtdeConfirmados = treino['RESULTADO'].value_counts()[1]
+dfDescartados = treino[treino['RESULTADO'] == 0] #Separa a base de descartados
+dfConfirmados = treino[treino['RESULTADO'] == 1] #Separa a base de confirmados
 
 #Under sampling
 print('\nUnder Sampling')
 dfDescartadosUnder = dfDescartados.sample(qtdeConfirmados)
 dfUnder = pd.concat([dfDescartadosUnder, dfConfirmados], axis=0)
-x = dfUnder[features].values
-y = dfUnder['RESULTADO'].values
+xTreino = dfUnder[features].values
+yTreino = dfUnder['RESULTADO'].values
 
 #Over sampling
 print('\nOver Sampling')
 dfConfirmadosOver = dfConfirmados.sample(qtdeDescartados, replace=True)
 dfOver = pd.concat([dfDescartados, dfConfirmadosOver], axis=0)
-x = dfOver[features].values
-y = dfOver['RESULTADO'].values
+xTreino = dfOver[features].values
+yTreino = dfOver['RESULTADO'].values
 
 #Smote sampling
-print('\nOver Sampling')
+print('\nSmote Sampling')
 oversample = SMOTE()
-x, y = oversample.fit_resample(x, y)
+xTreino, yTreino = oversample.fit_resample(treino[features], treino['RESULTADO'])
+xTreino = xTreino.values
+yTreino = yTreino.values
 
-#Separa base treinamento e teste
-xTreino, xTeste, yTreino, yTeste = train_test_split(x, y, random_state=1986)
+#K-fold
+print('\n========== VALIDAÇÃO MÉTODO K-FOLD ==========')
+arrayYReal = []
+arrayYPrediction = []
+arrayAcuracia = []
+arrayConfusion = np.array([[0, 0], [0, 0]])
 
-#Classificador Randon Forest
-classifierRF = RandomForestClassifier(random_state=1986, criterion='gini', max_depth=10, n_estimators=50, n_jobs=-1)
+kfold = StratifiedKFold(n_splits=5, shuffle=True, random_state=1986)
 
-#Feature Selection
-print('\nFeature Selection')
-classifierRF.fit(x, y) #Treina com todos registros
-featuresSelection = zip(classifierRF.feature_importances_, features)
-for importance, feature in sorted(featuresSelection, reverse=True):
-    print('%s: %f%%' % (feature, importance*100))
+#Grid Search
+paramGrid = {
+        'estimator__n_estimators': [3, 10, 25, 50],
+        'estimator__criterion': ['entropy', 'gini'],
+        'estimator__max_depth': ['none', 3, 5],
+        #'estimator__min_samples_split': [2, 5],
+        #'estimator__min_samples_leaf': [1, 3, 5],
+        #'#estimator__min_weight_fraction_leaf': [0, 2, 5],
+        #'estimator__max_features': ['auto', 0.1, 0.2, 0.5],
+        #'estimator__bootstrap': [False, True]
+        }
+
+classifier = RandomForestClassifier(class_weight="balanced", random_state=1986)
+rfecv = RFECV(estimator=classifier, step=1, cv=kfold, scoring='balanced_accuracy')
+gridSearch = GridSearchCV(rfecv, paramGrid, scoring='balanced_accuracy', n_jobs=3)
+gridSearch.fit(xTreino, yTreino)
+
+classifier = gridSearch.best_estimator_
+indFeatures = np.where(classifier.support_ == True)[0]
+
+print('Melhor parametrização: %s' % gridSearch.best_params_)
+print('Melhor pontuação: %.2f' % gridSearch.best_score_)
+print('Qtde features selecionadas: ', len(indFeatures))
+
+#Validação 
+print('\n========== TESTE ==========')
+xTreino = xTreino[:, indFeatures]
+xTeste = xTeste[xTeste.columns[indFeatures]]
 
 #Etapa de treinamento
-classifierRF.fit(xTreino, yTreino)
+classifier.fit(xTreino, yTreino)
 
 #Etapa de predição
-prediction = classifierRF.predict(xTeste)
+yPrediction = classifier.predict(xTeste)
 
-#Estima três registros
-print('\nTrês primeiros resultados')
-print(prediction[0], prediction[1], prediction[3])
-print(yTeste[0], yTeste[1], yTeste[3])
+cm = confusion_matrix(yTeste, yPrediction, labels=[0, 1])
 
-#Validação Simples
-print('\nValidação Simples')
-a = pd.DataFrame(yTeste, columns=['teste'])
-b = pd.DataFrame(prediction, columns=['prediction'])
-c = a.join(b)
+print(pd.DataFrame(cm, index=['real:descartado', 'real:confirmado'], 
+                   columns=['pred:descartado', 'pred:confirmado']))
 
-print('Acurácia: %f%%' % (np.equal(yTeste, prediction).sum() / len(prediction)))
-print('Sensibilidade: %f%%' %
-      (len(c.query('prediction == "confirmado" and teste == "confirmado"')) /
-      len(c.query('teste == "confirmado"'))))
-print('Especificidade: %f%%' %
-      (len(c.query('prediction == "descartado" and teste == "descartado"')) /
-      len(c.query('teste == "descartado"'))))
+print("\n(TN, FP, FN, TP): %s \n" % cm.ravel())
 
-#Validação cruzada
-print('\nValidação Cruzada')
-cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=1986)
-
-#Base Treino
-scores = cross_val_score(classifierRF, xTreino, yTreino, scoring='accuracy', cv=cv)
-print('Acurácia: %0.2f (+/- %0.2f)' % (scores.mean(), scores.std() * 2))
-
-scoresDf = pd.DataFrame(scores)
-print(scoresDf.describe())
-scoresDf.boxplot()
-plt.show()
-
-#Base de Teste
-scores = cross_val_score(classifierRF, xTeste, yTeste, scoring='accuracy', cv=cv)
-print('Acurácia: %0.2f (+/- %0.2f)' % (scores.mean(), scores.std() * 2))
-
-scoresDf = pd.DataFrame(scores)
-print(scoresDf.describe())
-scoresDf.boxplot()
-plt.show()
+print(classification_report(yTeste, yPrediction, labels=[0, 1]))
