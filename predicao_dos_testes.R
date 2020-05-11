@@ -117,7 +117,7 @@ ps_svm <- makeParamSet(
 		  makeDiscreteParam("fw.perc", values = seq(0.2, 1, 0.05))
   	  )
 ## Estratégia de hyperparametrização - grid search
-ctrl <- makeTuneControlRandom(maxit = 10L)
+ctrl <- makeTuneControlRandom(maxit = 100L)
 ## Estratégia de ressampling do inner loop - validação cruzada com estratificação dos resultados balanceados entre as folds
 inner <- makeResampleDesc("CV", iter = 5, stratify = TRUE)
 #measures https://mlr.mlr-org.com/articles/tutorial/measures.html
