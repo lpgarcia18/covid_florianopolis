@@ -24,10 +24,10 @@ xTreino, xTeste, yTreino, yTeste = train_test_split(x, y, random_state=1986)
 
 #Balanceamento
 treino = xTreino.join(yTreino)
-qtdeDescartados = treino['RESULTADO'].value_counts()['descartado']
-qtdeConfirmados = treino['RESULTADO'].value_counts()['confirmado']
-dfDescartados = treino[treino['RESULTADO'] == 'descartado'] #Separa a base de descartados
-dfConfirmados = treino[treino['RESULTADO'] == 'confirmado'] #Separa a base de confirmados
+qtdeDescartados = treino['RESULTADO'].value_counts()[0]
+qtdeConfirmados = treino['RESULTADO'].value_counts()[1]
+dfDescartados = treino[treino['RESULTADO'] == 0] #Separa a base de descartados
+dfConfirmados = treino[treino['RESULTADO'] == 1] #Separa a base de confirmados
 
 #Under sampling
 print('\nUnder Sampling')

@@ -125,6 +125,9 @@ df['Tx_Removidos_territorio'] = df['Removidos_territorio'] / df['populacao']
 #Deixa na base apenas os registros com Resultado igual a 'confirmado' ou 'descartado'
 df = df.drop(df.query('RESULTADO != "confirmado" and RESULTADO != "descartado"').index)
 
+#Transforma Resultado em código
+df['RESULTADO'] = df['RESULTADO'].apply(lambda x: '0' if (x == 'descartado') else '1')
+
 #Reset no índice para dar append nas colunas
 df = df.reset_index()
 

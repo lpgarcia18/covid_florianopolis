@@ -68,7 +68,7 @@ kfold = StratifiedKFold(n_splits=5, shuffle=True, random_state=1986)
 
 #Grid Search
 paramGrid = {
-        'estimator__n_estimators': [3, 10, 25, 50],
+        'estimator__n_estimators': [3, 10, 25],
         'estimator__criterion': ['entropy', 'gini'],
         'estimator__max_depth': ['none', 3, 5],
         #'estimator__min_samples_split': [2, 5],
