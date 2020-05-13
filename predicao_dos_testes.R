@@ -160,7 +160,7 @@ mod2_task <- makeClassifTask(data = test_base[,!(names(test_base) %in% c("ID"))]
 confirmados <- sum(test_base$RESULTADO == "confirmado")
 descartados <- sum(test_base$RESULTADO == "descartado")
 mod2_task_smote <- smote(mod2_task, rate = descartados/confirmados, nn = 5)
-mod_test <- train(lrn_train, mod2_task)
+mod_test <- train(lrn_train, mod2_task_smote)
 test_base$PREDICAO <- predict(mod_test, newdata = test_base[,names(test_base) != c("ID", "RESULTADO")])$data[,1]
 confusionMatrix(data = test_base$PREDICAO, reference = test_base$RESULTADO)
 confusionMatrix(data = test_base$PREDICAO, reference = test_base$RESULTADO, mode = "prec_recall")
