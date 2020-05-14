@@ -166,6 +166,7 @@ confusionMatrix(data = test_base$PREDICAO, reference = test_base$RESULTADO)
 confusionMatrix(data = test_base$PREDICAO, reference = test_base$RESULTADO, mode = "prec_recall")
 
 ## Predição dos dados faltantes
+
 predic_base$RESULTADO <- predict(mod_test, newdata = predic_base[,names(predic_base) != "ID"])$data[,1]
 predic_base$RESULTADO <- as.character(predic_base$RESULTADO)
 
