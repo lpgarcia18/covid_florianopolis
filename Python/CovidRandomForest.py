@@ -71,13 +71,12 @@ score = 'average_precision'
 
 #Define o classificador
 classifier = RandomForestClassifier(class_weight="balanced", random_state=1986)
-classifier = SVC(kernel='linear', C=0.025)
 
 #Grid Search
 paramGrid = {
-        #'estimator__criterion': ['entropy', 'gini'],
-        #'estimator__n_estimators': [3],
-        #'estimator__max_depth': [None, 3, 5, 10],
+        'estimator__criterion': ['entropy', 'gini'],
+        'estimator__n_estimators': [3, 10, 25, 50],
+        'estimator__max_depth': [None, 3, 5],
         #'estimator__min_samples_split': [2, 5],
         #'estimator__min_samples_leaf': [1, 3, 5],
         #'estimator__min_weight_fraction_leaf': [0, 2, 5],
