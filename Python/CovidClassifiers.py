@@ -9,7 +9,7 @@ import pandas as pd
 import numpy as np
 from imblearn.over_sampling import SMOTE
 from sklearn.svm import SVC
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, AdaBoostClassifier
 from sklearn.feature_selection import RFECV
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import train_test_split
@@ -69,23 +69,32 @@ kfold = StratifiedKFold(n_splits=5, shuffle=True, random_state=1986)
 #Define o score
 score = 'average_precision'
 
-#Define o classificador
-classifier = RandomForestClassifier(class_weight="balanced", random_state=1986)
-
 #Grid Search
-paramGrid = {
-        'estimator__criterion': ['entropy', 'gini'],
-        'estimator__n_estimators': [3, 10, 25, 50],
-        'estimator__max_depth': [None, 3, 5],
-        #'estimator__min_samples_split': [2, 5],
-        #'estimator__min_samples_leaf': [1, 3, 5],
-        #'estimator__min_weight_fraction_leaf': [0, 2, 5],
-        #'estimator__max_features': ['auto', 0.1, 0.2, 0.5],
-        #'estimator__bootstrap': [False, True],
-        }
+paramGrid = [
+    {
+         'estimator': [RandomForestClassifier(class_weight='balanced', random_state=1986)],
+         'estimator__criterion': ['entropy', 'gini'],
+         'estimator__n_estimators': [3, 10],
+         #'estimator__max_depth': [None, 3, 5],
+         #'estimator__bootstrap': [False, True],
+    },
+    {
+         'estimator': [AdaBoostClassifier(random_state=1986)],
+         'estimator__n_estimators': [3, 10],
+    },
+    {
+         'estimator': [GradientBoostingClassifier(random_state=1986)],
+         'estimator__criterion': ['friedman_mse', 'mse', 'mae'], 
+         'estimator__n_estimators': [3, 10],
+         #'estimator__max_depth': [None, 3, 5],
+         #'estimator__loss': ['deviance', 'exponential'],
+    },
+    {
+        'estimator': [SVC(kernel="linear", C=0.025, random_state=1986)],
+    }]
 
 #Feature Selection nas mesmas condições de classificador e folders
-rfecv = RFECV(estimator=classifier, step=1, cv=kfold, scoring=score)
+rfecv = RFECV(estimator=None, step=1, cv=kfold, scoring=score)
 
 #Faz o processamento de treinamento com Tuning e Feature Selection
 gridSearch = GridSearchCV(rfecv, paramGrid, scoring=score, n_jobs=3, verbose=25)
@@ -94,7 +103,8 @@ gridSearch.fit(xTreino, yTreino)
 classifier = gridSearch.best_estimator_
 indFeatures = np.where(classifier.support_ == True)[0]
 
-print('\nMelhor parametrização: %s' % gridSearch.best_params_)
+print('\nMelhor estimador: %s' % gridSearch.best_estimator_)
+print('Melhor parametrização: %s' % gridSearch.best_params_)
 print('Melhor pontuação: %.2f' % gridSearch.best_score_)
 print('Qtde features selecionadas: ', len(indFeatures))
 
