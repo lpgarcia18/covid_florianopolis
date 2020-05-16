@@ -146,8 +146,8 @@ tune_train <- tuneParams(learner = rf, task = mod1_task_smote, resampling = oute
 		       measure = bac, par.set = ps_rf, control = ctrl)
 
 ## Resultado na base de treino
-lrn_train <- setHyperPars(makeFilterWrapper(learner = "classif.ranger", 
-					   fw.method = "FSelector_gain.ratio"), par.vals = tune_train$x)
+lrn_train <- setHyperPars(makeFilterWrapper(learner = "classif.ranger", fw.method = "FSelector_gain.ratio"), 
+			  par.vals = tune_train$x)
 
 mod_train <- resample(learner = lrn_train, task = mod1_task_smote, resampling = outer, models = TRUE, show.info = FALSE, 
 		       measure = bac)
@@ -160,10 +160,26 @@ mod2_task <- makeClassifTask(data = test_base[,!(names(test_base) %in% c("ID"))]
 confirmados <- sum(test_base$RESULTADO == "confirmado")
 descartados <- sum(test_base$RESULTADO == "descartado")
 mod2_task_smote <- smote(mod2_task, rate = descartados/confirmados, nn = 5)
-mod_test <- train(lrn_train, mod2_task_smote)
+mod_test <- train(lrn_train, mod2_task)
 test_base$PREDICAO <- predict(mod_test, newdata = test_base[,names(test_base) != c("ID", "RESULTADO")])$data[,1]
 confusionMatrix(data = test_base$PREDICAO, reference = test_base$RESULTADO)
 confusionMatrix(data = test_base$PREDICAO, reference = test_base$RESULTADO, mode = "prec_recall")
+getFeatureImportance(mod_test)
+generateFeatureImportanceData(
+	  mod2_task_smote,
+	  method = "permutation.importance",
+	  lrn_train,
+	  features = getTaskFeatureNames(mod2_task_smote),
+	  interaction = FALSE,
+	  measure = bac,
+	  contrast = function(x, y) x - y,
+	  aggregation = mean,
+	  nmc = 50L,
+	  replace = TRUE,
+	  local = FALSE,
+	  show.info = FALSE
+)
+
 
 ## Predição dos dados faltantes
 
