@@ -155,134 +155,88 @@ covid <- subset(covid, !is.na(covid$`Data do início dos sintomas`))
 
 # Convertendo, ajustando e criando variáveis
 covid <- sapply(covid, as.character) %>% as.data.frame()
-
+covid <- sapply(covid, tolower) %>% as.data.frame()
+covid <- sapply(covid, rm_accent) %>% as.data.frame()
 
 
 ## Ajustando a variável Bairro para corrigir erros causasdos por caracteres especiais ou falha na digitação.
 ## Os bairros foram aproximados para coincidirem com as áreas dos Centros de Saúde
 ## Bairros de outros municípios foram categorizados como outros
 covid$Bairro <- as.character(covid$Bairro)
-covid[which(covid$Bairro == "agrona´mica"),names(covid) == "Bairro"]<- "agronomica"
-covid[which(covid$Bairro == "armaa§a£o"),names(covid) == "Bairro"]<- "armacao"
-covid[which(covid$Bairro == "armaa§ao"),names(covid) == "Bairro"]<- "armacao"
-covid[which(covid$Bairro == "balnea¡rio"),names(covid) == "Bairro"]<- "balneario"
-covid[which(covid$Bairro == "biguacu"),names(covid) == "Bairro"]<- "outro"
-covid[which(covid$Bairro == "ca³rrego grande"),names(covid) == "Bairro"]<- "corrego grande"
-covid[which(covid$Bairro == "caieira da barra sul"),names(covid) == "Bairro"]<- "caieira da barra do sul"
-covid[which(covid$Bairro == "canto (coninente)"),names(covid) == "Bairro"]<- "outro"
+
+covid[which(covid$Bairro == "alto aririu"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "aracatuba"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "areias"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "aririu da formiga"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "barra do aririu"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "barra do sambaqui"),names(covid) == "Bairro"]<- "santo antonio de lisboa"
+covid[which(covid$Bairro == "barreiros"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "bela vista"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "bom abrigo"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "bom jesus"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "caeira do saco dos limoes"),names(covid) == "Bairro"]<- "saco dos limoes"
+covid[which(covid$Bairro == "caminho novo"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "campinas"),names(covid) == "Bairro"]<- "outro"
 covid[which(covid$Bairro == "canto (continente)"),names(covid) == "Bairro"]<- "outro"
-covid[which(covid$Bairro == "canto(continente)"),names(covid) == "Bairro"]<- "outro"
-covid[which(covid$Bairro == "canto"),names(covid) == "Bairro"]<- "outro"
-covid[which(covid$Bairro == "costeira"),names(covid) == "Bairro"]<- "costeira do pirajubae"
-covid[which(covid$Bairro == "costeira de pirajubae"),names(covid) == "Bairro"]<- "costeira do pirajubae"
-covid[which(covid$Bairro == "costeira do pirajube"),names(covid) == "Bairro"]<- "costeira do pirajubae"
-covid[which(covid$Bairro == "cs rio vermelho"),names(covid) == "Bairro"]<- "rio vermelho"
-covid[which(covid$Bairro == "cs trindade"),names(covid) == "Bairro"]<- "trindade"
+covid[which(covid$Bairro == "capao"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "carvoeira"),names(covid) == "Bairro"]<- "pantanal"
+covid[which(covid$Bairro == "colonia santana"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "costa de dentro"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "da praca"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "do aririu"),names(covid) == "Bairro"]<- "outro"
 covid[which(covid$Bairro == "estacio"),names(covid) == "Bairro"]<- "outro"
-covid[which(covid$Bairro == "forquilinhas"),names(covid) == "Bairro"]<- "outro"
-covid[which(covid$Bairro == "fzenda do rio tavares"),names(covid) == "Bairro"]<- "fazenda do rio tavares"
-covid[which(covid$Bairro == "igleses"),names(covid) == "Bairro"]<- "ingleses"
-covid[which(covid$Bairro == "ingleses do rio vermelho"),names(covid) == "Bairro"]<- "ingleses"
-covid[which(covid$Bairro == "inglses"),names(covid) == "Bairro"]<- "ingleses"
+covid[which(covid$Bairro == "estacio"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "fazenda da armacao"),names(covid) == "Bairro"]<- "armacao"
+covid[which(covid$Bairro == "estacio"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "fazenda santo antonio"),names(covid) == "Bairro"]<- "santo antonio de lisboa"
+covid[which(covid$Bairro == "florquilinhas"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "forquilhas"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "forquilhinha"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "fundos"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "ipiranga"),names(covid) == "Bairro"]<- "outro"
 covid[which(covid$Bairro == "itaguacu"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "itoupava central"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "jardim acalipto"),names(covid) == "Bairro"]<- "outro"
 covid[which(covid$Bairro == "jardim cidade de florianopolis"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "jardim cidade florianopolis"),names(covid) == "Bairro"]<- "outro"
 covid[which(covid$Bairro == "jardim janaina"),names(covid) == "Bairro"]<- "outro"
 covid[which(covid$Bairro == "jose mendes"),names(covid) == "Bairro"]<- "prainha"
 covid[which(covid$Bairro == "jurere internacional"),names(covid) == "Bairro"]<- "jurere"
-covid[which(covid$Bairro == "jurere tradicional"),names(covid) == "Bairro"]<- "jurere"
-covid[which(covid$Bairro == "lagoa"),names(covid) == "Bairro"]<- "lagoa da conceicao"
-covid[which(covid$Bairro == "lagoa da conceia§a£o"),names(covid) == "Bairro"]<- "lagoa da conceicao"
-covid[which(covid$Bairro == "joao mendes"),names(covid) == "Bairro"]<- "prainha"
-covid[which(covid$Bairro == "monte verde / barra do sambaqui"),names(covid) == "Bairro"]<- "saco grande"
-covid[which(covid$Bairro == "monte de cristo"),names(covid) == "Bairro"]<- "monte cristo"
-covid[which(covid$Bairro == "monte verde"),names(covid) == "Bairro"]<- "saco grande"
-covid[which(covid$Bairro == "pantano sul"),names(covid) == "Bairro"]<- "pantano do sul" 
-covid[which(covid$Bairro == "real parque"),names(covid) == "Bairro"]<- "outro"
-covid[which(covid$Bairro == "ribeira£o da ilha"),names(covid) == "Bairro"]<- "ribeirao da ilha"
-covid[which(covid$Bairro == "ribeirao"),names(covid) == "Bairro"]<- "ribeirao da ilha"
-covid[which(covid$Bairro == "ribeirao da  ilha"),names(covid) == "Bairro"]<- "ribeirao da ilha"
-covid[which(covid$Bairro == "ribeirao da lha"),names(covid) == "Bairro"]<- "ribeirao da ilha"
-covid[which(covid$Bairro == "ribeiriao da ilha"),names(covid) == "Bairro"]<- "ribeirao da ilha"
-covid[which(covid$Bairro == "sa£o joa£ do rio vermelho"),names(covid) == "Bairro"]<- "rio vermelho"
-covid[which(covid$Bairro == "sa£o joa£o do rio vermelho"),names(covid) == "Bairro"]<- "rio vermelho"
-covid[which(covid$Bairro == "sa£o joao do rio vermelho"),names(covid) == "Bairro"]<- "rio vermelho"
-covid[which(covid$Bairro == "saco de limaµes"),names(covid) == "Bairro"]<- "saco dos limoes"
-covid[which(covid$Bairro == "saco dos limaµes"),names(covid) == "Bairro"]<- "saco dos limoes"
-covid[which(covid$Bairro == "sao joao do rio vermelho" ),names(covid) == "Bairro"]<- "rio vermelho"
-covid[which(covid$Bairro == "sao joao do rio vermelho ap 5" ),names(covid) == "Bairro"]<- "rio vermelho"
-covid[which(covid$Bairro == "serraria"),names(covid) == "Bairro"]<- "outro"
-covid[which(covid$Bairro == "tepera"),names(covid) == "Bairro"]<- "tapera"
-covid[which(covid$Bairro == "trimdade"),names(covid) == "Bairro"]<- "trindade"
-covid[which(covid$Bairro == "rocado"),names(covid) == "Bairro"]<- "rio vermelho"
-covid[which(covid$Bairro == "varge, grande"),names(covid) == "Bairro"]<- "vargem grande"
-covid[which(covid$Bairro == "rocado"),names(covid) == "Bairro"]<- "rio vermelho"
-covid[which(covid$Bairro == "varge, grande"),names(covid) == "Bairro"]<- "vargem grande"
-covid[which(covid$Bairro == "vargem do bom jesus"),names(covid) == "Bairro"] <- "canasvieiras"
-covid[which(covid$Bairro == "vila cachoeira"),names(covid) == "Bairro"]<- "outro"
-covid[which(covid$Bairro == "sambaqui"),names(covid) == "Bairro"]<- "saco grande"
-covid[which(covid$Bairro == "santa monica"),names(covid) == "Bairro"]<- "itacorubi"
-covid[which(covid$Bairro == "caeira da barra do sul"),names(covid) == "Bairro"]<- "caieira da barra do sul"
-covid[which(covid$Bairro == "caeira do saco dos limoes"),names(covid) == "Bairro"]<- "saco dos limoes"
-covid[which(covid$Bairro == "costa de dentro"),names(covid) == "Bairro"]<- "outro"
-covid[which(covid$Bairro == "bela vista"),names(covid) == "Bairro"]<- "outro"
-covid[which(covid$Bairro == "acores"),names(covid) == "Bairro"]<- "pantano do sul"
-covid[which(covid$Bairro == "jureraª"),names(covid) == "Bairro"]<- "pantano do sul"
-covid[which(covid$Bairro == "cacupa©"),names(covid) == "Bairro"]<- "pantano do sul"
-covid[which(covid$Bairro == "joa£o paulo"),names(covid) == "Bairro"]<- "pantano do sul"
-covid[which(covid$Bairro == "sto anta´nio de lisboa"),names(covid) == "Bairro"]<- "pantano do sul"
-covid[which(covid$Bairro == "abraa£o"),names(covid) == "Bairro"]<- "pantano do sul"
-covid[which(covid$Bairro == "ipiranga"),names(covid) == "Bairro"]<- "outro"
-covid[which(covid$Bairro == "fundos"),names(covid) == "Bairro"]<- "outro"
-covid[which(covid$Bairro == "armaa§a£o do pa¢ntano do sul"),names(covid) == "Bairro"]<- "pantano do sul"
-covid[which(covid$Bairro == "forquilhas"),names(covid) == "Bairro"]<- "outro"
-covid[which(covid$Bairro == "areias"),names(covid) == "Bairro"]<- "outro"
-covid[which(covid$Bairro == "praia brava"),names(covid) == "Bairro"]<- "ponta das canas"
-covid[which(covid$Bairro == "pagani"),names(covid) == "Bairro"]<- "outro"
-covid[which(covid$Bairro == "bom abrigo"),names(covid) == "Bairro"]<- "coqueiros"
-covid[which(covid$Bairro == "ponte do imaruim"),names(covid) == "Bairro"]<- "outro"
-covid[which(covid$Bairro == "joaƒo paulo"),names(covid) == "Bairro"]<- "outro"
-covid[which(covid$Bairro == "parque sao jorge"),names(covid) == "Bairro"]<- "itacorubi"
-covid[which(covid$Bairro == "daniela"),names(covid) == "Bairro"]<- "jurere"
-covid[which(covid$Bairro == "parque sa£o jorge"),names(covid) == "Bairro"]<- "corrego grande"
-covid[which(covid$Bairro == "nao identificado"),names(covid) == "Bairro"]<- NA
-covid[which(covid$Bairro == "nossa senhora do rosa¡rio"),names(covid) == "Bairro"]<- "outro"
-covid[which(covid$Bairro == "santa ma´nica"),names(covid) == "Bairro"]<- "itacorubi"
-covid[which(covid$Bairro == "cachoeira"),names(covid) == "Bairro"]<- "cachoeira do bom jesus"
-covid[which(covid$Bairro == "caiera- scao dos limoes"),names(covid) == "Bairro"]<- "saco dos limoes"
-covid[which(covid$Bairro == "sao sebastiao"),names(covid) == "Bairro"]<- "outro"
-covid[which(covid$Bairro == "sem denominacao"),names(covid) == "Bairro"]<- NA
-covid[which(covid$Bairro == "armaa‡aƒo do pantano do sul"),names(covid) == "Bairro"]<- "pantano do sul"
-covid[which(covid$Bairro == "saco dos  limaµes"),names(covid) == "Bairro"]<- "saco dos limoes"
-covid[which(covid$Bairro == "porto da lagoa"),names(covid) == "Bairro"]<- "canto da lagoa"
-covid[which(covid$Bairro == "jardim cidade florianopolis"),names(covid) == "Bairro"]<- "outro"
-covid[which(covid$Bairro == "jardim atla¢ntico"),names(covid) == "Bairro"]<- "jardim atlantico"
-covid[which(covid$Bairro == "ingleses-rio vermelho"),names(covid) == "Bairro"]<- "rio vermelho"
-covid[which(covid$Bairro == "itaguaa§u"),names(covid) == "Bairro"]<- "coqueiros"
-covid[which(covid$Bairro == "josa© mendes"),names(covid) == "Bairro"]<- "prainha"
 covid[which(covid$Bairro == "kobrasol"),names(covid) == "Bairro"]<- "outro"
-covid[which(covid$Bairro == "vargem grande/de fora"),names(covid) == "Bairro"]<- "outro"
-covid[which(covid$Bairro == "sto antonio de lisboa"),names(covid) == "Bairro"]<- "santo antonio de lisboa"
-covid[which(covid$Bairro == "bosques das mansoes"),names(covid) == "Bairro"]<- "outro"
-covid[which(covid$Bairro == "ingleses do ri vermelho"),names(covid) == "Bairro"]<- "ingleses"
-covid[which(covid$Bairro == "agronomia"),names(covid) == "Bairro"]<- "agronomica"
-covid[which(covid$Bairro == "cachoeira de bom jesus"),names(covid) == "Bairro"]<- "cachoeira do bom jesus"
-covid[which(covid$Bairro == "canto da lago"),names(covid) == "Bairro"]<- "canto da lagoa"
-covid[which(covid$Bairro == "capoieras"),names(covid) == "Bairro"]<- "capoeiras"
-covid[which(covid$Bairro == "costeira do pirajubaa©"),names(covid) == "Bairro"]<- "costeira do pirajubae"
-covid[which(covid$Bairro == "lagoa de conceicao"),names(covid) == "Bairro"]<- "lagoa da conceicao"
+covid[which(covid$Bairro == "madri"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "monte verde"),names(covid) == "Bairro"]<- "saco grande"
+covid[which(covid$Bairro == "nao identificado"),names(covid) == "Bairro"]<- NA
+covid[which(covid$Bairro == "nao informado"),names(covid) == "Bairro"]<- NA
+covid[which(covid$Bairro == "nossa senhora do rosario"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "nova palhoca"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "passa vinte"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "pagani"),names(covid) == "Bairro"]<- "outro"
 covid[which(covid$Bairro == "pedra branca"),names(covid) == "Bairro"]<- "outro"
-covid[which(covid$Bairro == "saco de limoes"),names(covid) == "Bairro"]<- "saco dos limoes"
-covid[which(covid$Bairro == "ponta das canasvieras"),names(covid) == "Bairro"]<- "ponta das canas"
-covid[which(covid$Bairro == "caminho novo"),names(covid) == "Bairro"]<- "outro"
-covid[which(covid$Bairro == "barreiros"),names(covid) == "Bairro"]<- "outro"
-covid[which(covid$Bairro == "cacupe"),names(covid) == "Bairro"]<- "santo antonio de lisboa"
-covid[which(covid$Bairro == "carvoeira"),names(covid) == "Bairro"]<- "pantanal"
-
+covid[which(covid$Bairro == "ponte do imaruim"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "prado de baixo"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "praia brava"),names(covid) == "Bairro"]<- "ponta das canas"
+covid[which(covid$Bairro == "praia joao rosa"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "real parque"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "rio caveiras"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "rocado"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "santa monica"),names(covid) == "Bairro"]<- "corrego grande"
+covid[which(covid$Bairro == "sao joao do rio vermelho"),names(covid) == "Bairro"]<- "rio vermelho"
+covid[which(covid$Bairro == "sao luiz"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "sao sebastiao"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "sao vicente"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "serraria"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "silveira"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "umarizal"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "vargem do bom jesus"),names(covid) == "Bairro"]<- "canasvieiras"
+covid[which(covid$Bairro == "varginha"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "vila suzana"),names(covid) == "Bairro"]<- "outro"
 
 covid$Bairro <- ifelse(is.na(covid$Bairro) | covid$Bairro == "outro", covid$Bairro, paste0("cs ",covid$Bairro))
 covid$Bairro <- ajustar_nomes(covid$Bairro)
 sort(unique(covid$Bairro))
 
+
+sort(unique(covid$`Unidade de referência`))
 
 ##Convertendo idade em categoria
 covid$IDADE <- as.numeric(as.character(covid$IDADE)) 
@@ -305,8 +259,8 @@ covid$TRIAGEM <- ifelse(covid$`Data do início dos sintomas` < as.Date("2020-03-
 			ifelse(covid$`Data do início dos sintomas` < as.Date("2020-04-06", format = "%Y-%m-%d"), "modelo 2", "modelo 3"))
 
 ## Transformando outros municípios na categoria "outros", pois o número é pequeno
-covid$`Municipio de residencia` <- as.character(covid$`Municipio de residencia`)
-covid$`Municipio de residencia` <- ifelse(covid$`Municipio de residencia` == "florianopolis", "florianopolis", "outro")
+covid$`Município de residência` <- as.character(covid$`Município de residência`)
+covid$`Município de residência` <- ifelse(covid$`Município de residência` == "florianopolis", "florianopolis", "outro")
 
 
 ## Utilizando data de notificação se data de primeiro sintoma for nula
@@ -314,10 +268,9 @@ covid$`Data do início dos sintomas` <- ifelse(is.na(covid$`Data do início dos 
 
 ## Mantendo apenas resultados "confirmado" ou "descartado" ou "não detectado" (essas duas últimas categorias são a mesma coisa). 
 ## Os pacientes aguardando resultado ou com resultado inconclusivo foram classificados como missing
-covid$`Resultado do teste` <- ifelse(covid$`Resultado do teste` == "confirmado", "confirmado",
-			  		ifelse(covid$`Resultado do teste` == "descartado", "descartado",
-			  			ifelse(covid$`Resultado do teste` == "não detectado", "descartado",
-			  	       		"missing")))
+covid$`Resultado do teste` <- ifelse(covid$`Resultado do teste` == "positivo", "confirmado",
+			  		ifelse(covid$`Resultado do teste` == "negativo", "descartado",
+			  	       		"missing"))
 
 ## Ajustando a variável território (Áreas dos centros de saúde) e subterritório (áreas das equipes de saúde da família)
 ## Florianópolis possui projeções demográficos (população, escolaridade, renda, sexo, idade), por território.
@@ -326,7 +279,7 @@ covid <- covid %>% rename(Territorio = `Unidade de referência`,
 			 Subterritorio = `Equipe de referência`)
 covid$Territorio <- ajustar_nomes(covid$Territorio)
 covid$Territorio <- ifelse(is.na(covid$Territorio), covid$Bairro, covid$Territorio)
-
+covid$Bairro <- NULL
 sort(unique(covid$Territorio))
 
 ## Construindo variável Quantidade de Infectados (pessoas com até 14 dias de início de sintomas) por território
@@ -399,25 +352,29 @@ names(infec) <- c("Territorio", "Data do início dos sintomas", "INFECTADOS_TERR
 	
 covid <- merge(covid, infec, by = c("Territorio", "Data do início dos sintomas"), all.x = T)
 
-#Selecionando as variáveis de trabalho
-covid <- covid %>%
-	dplyr::select(ID,Sexo, `Municipio de residencia`, Territorio, Subterritorio, FAIXA_ETARIA, IDADE, TRIAGEM, `Data do início dos sintomas`,
-		      `Resultado do teste`, `Raça/Cor`, INFECTADOS_TERRITORIO)
-
-
 ## Substituindo NA por "missing" nas variáveis que serão utilizadas como categógicas.
-covid[,!(names(covid) %in% c("ID", "Data do início dos sintomas", "IDADE"))] <- sapply(covid[,!(names(covid) %in% c("ID", "Data do início dos sintomas", "IDADE"))], as.factor) %>% as.data.frame()
-covid$`Resultado do teste` <-fct_explicit_na(covid$`Resultado do teste`, "missing")
-covid$`Municipio de residencia` <-fct_explicit_na(covid$`Municipio de residencia`, "missing")
-covid$Sexo <-fct_explicit_na(covid$Sexo, "missing")
+covid[,!(names(covid) %in% c("ID", "Data do início dos sintomas", "IDADE"))] <- sapply(covid[,!(names(covid) %in% c("ID", "Data do início dos sintomas", "Data de notificação", "IDADE"))], as.factor) %>% as.data.frame()
 covid$Territorio <-fct_explicit_na(covid$Territorio, "missing")
-covid$Subterritorio <-fct_explicit_na(covid$Subterritorio, "missing")
-covid$TRIAGEM <-fct_explicit_na(covid$TRIAGEM, "missing")
-covid$FAIXA_ETARIA <-fct_explicit_na(covid$FAIXA_ETARIA, "missing")
-covid$`Raça/Cor` <-fct_explicit_na(covid$`Raça/Cor`, "missing")
+covid$`UF de notificação` <-fct_explicit_na(covid$`UF de notificação`, "missing")
+covid$`Município de notificação` <-fct_explicit_na(covid$`Município de notificação`, "missing")
+covid$Estrangeiro <-fct_explicit_na(covid$Estrangeiro, "missing")
+covid$`É profissional de saúde` <-fct_explicit_na(covid$`É profissional de saúde`, "missing")
+covid$Sexo <-fct_explicit_na(covid$Sexo, "missing")
+covid$`UF de residência` <-fct_explicit_na(covid$`UF de residência`, "missing")
+covid$`Município de residência` <-fct_explicit_na(covid$`Município de residência`, "missing")
+covid$`Sintomas - Dor de garganta` <-fct_explicit_na(covid$`Sintomas - Dor de garganta`, "missing")
+covid$`Sintomas - Dispneia` <-fct_explicit_na(covid$`Sintomas - Dispneia`, "missing")
+covid$`Sintomas - Febre` <-fct_explicit_na(covid$`Sintomas - Febre`, "missing")
+covid$`Sintomas - Tosse` <-fct_explicit_na(covid$`Sintomas - Tosse`, "missing")
+covid$`Resultado do teste` <-fct_explicit_na(covid$`Resultado do teste`, "missing")
+covid$`Tipo de exame` <-fct_explicit_na(covid$`Tipo de exame`, "missing")
+covid$`Subterritorio` <-fct_explicit_na(covid$`Subterritorio`, "missing")
+covid$`Raça` <-fct_explicit_na(covid$`Raça`, "missing")
+covid$`FAIXA_ETARIA` <-fct_explicit_na(covid$`FAIXA_ETARIA`, "missing")
+covid$`TRIAGEM` <-fct_explicit_na(covid$`TRIAGEM`, "missing")
+covid$`INFECTADOS_TERRITORIO` <-fct_explicit_na(covid$`INFECTADOS_TERRITORIO`, "missing")
 
-
-
+covid$`Data da notificação` <- as.Date(covid$`Data da notificação`, format = "%d/%m/%Y")
 
 ## Com a quantidade de missim em Sexo e Idade é pequeno esses dados foram retirados para que não haja problemas na paralelização
 covid <- subset(covid, covid$Sexo != "missing")
@@ -438,8 +395,39 @@ covid$TX_INFECTADOS_TERRITORIO <- as.numeric(covid$INFECTADOS_TERRITORIO)/as.num
 
 
 ## Ajustando nome da base
-names(covid)[c(1:12,152)] <- c("TERRITORIO", "ID", "SEXO", "MUNICIPIO", "SUBTERRITORIO","FAIXA_ETARIA", "IDADE", "TRIAGEM", "INICIO_SINTOMAS", "RESULTADO", "RACA_COR", "INFECTADOS_TERRITORIO", "TX_INFECTADOS_TERRITORIO")
+names(covid)[c(1:23,163)] <- c("TERRITORIO", 
+			       "INICIO_SINTOMAS", 
+			       "ID",
+			       "UF_NOTIFICACAO",
+			       "MUNICIPIO_NOTIFICACAO",
+			       "ESTRANGEIRO",
+			       "PROF_SAUDE",
+			       "SEXO",
+			       "UF_RESIDENCIA",
+			       "MUNICIPIO_RESIDENCIA",
+			       "DATA_NOTIFICACAO",
+			       "DOR_GARGANTA",
+			       "DISPINEIA",
+			       "FEBRE",
+			       "TOSSE",
+			       "RESULTADO",
+			       "SUBTERRITORIO",
+			       "RACA_COR",
+			       "TIPO_EXAME",
+			       "IDADE",
+			       "FAIXA_ETARIA",  
+			       "TRIAGEM",  
+			       "INFECTADOS_TERRITORIO", 
+			       "TX_INFECTADOS_TERRITORIO")
 summary(covid)
+
+
+#UF e municipio de notificação e uf e municipio de residencia são praticamente só SC e Fpolis. Por isso, serão excluídos
+covid$ESTRANGEIRO <- NULL
+covid$UF_NOTIFICACAO <- NULL
+covid$MUNICIPIO_NOTIFICACAO <- NULL
+covid$UF_RESIDENCIA <- NULL
+covid$MUNICIPIO_RESIDENCIA <- NULL
 
 
 ## Alguns algoritmos como o Random Forest não trabalham com variáveis com grande númer de categorias, por isso, selecionaram-se
@@ -546,20 +534,21 @@ covid$mulheres <- as.numeric(as.character(covid$mulheres))
 covid$PROP_MASC <- covid$homens/covid$mulheres
 
 ## Percentual de pessoas com 60 anos ou mais
-covid[,c(12:112)] <- apply(covid[,c(12:112)], 2,            # Specify own function within apply
+covid[,c(19:119)] <- apply(covid[,c(19:119)], 2,            # Specify own function within apply
                     function(x) as.numeric(as.character(x)))
-covid$PERC_60_MAIS <- rowSums(covid[,c(72:112)])/rowSums(covid[,c(12:112)])
+covid$PERC_60_MAIS <- rowSums(covid[,c(79:119)])/rowSums(covid[,c(19:112)])
 
+covid$idade_na <- NULL
 
 ## Percentual de pessoas NÃO brancas
-covid[,c(139:143)] <- apply(covid[,c(139:143)], 2,            # Specify own function within apply
+covid[,c(145:150)] <- apply(covid[,c(145:150)], 2,            # Specify own function within apply
                     function(x) as.numeric(as.character(x)))
-covid$PERC_NAO_BRANCA <- covid[,c(139)]/rowSums(covid[,c(139:143)])
+covid$PERC_NAO_BRANCA <- rowSums(covid[,c(146:150)])/rowSums(covid[,c(145:150)])
 
-## Percentual de pessoas 10 anos ou menos 
-covid[,c(117:136,138)] <- apply(covid[,c(117:136,138)], 2,            # Specify own function within apply
+## Percentual de pessoas 10 anos ou menos de escolaridade
+covid[,c(123:144)] <- apply(covid[,c(123:144)], 2,            # Specify own function within apply
                     function(x) as.numeric(as.character(x)))
-covid$PERC_ESC_10_MENOS <- rowSums(covid[,c(117:129)])/rowSums(covid[,c(117:136,138)])
+covid$PERC_ESC_10_MENOS <- rowSums(covid[,c(123:135)])/rowSums(covid[,c(123:144)])
 
 
 # Exportando base ---------------------------------------------------------

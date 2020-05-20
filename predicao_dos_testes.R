@@ -2,7 +2,7 @@
 options(scipen=999)
 gc()
 set.seed(1)
-options(java.parameters = "-Xmx8g") #Evitar que o java tenha problemas de memória
+options(java.parameters = "-Xmx16g") #Evitar que o java tenha problemas de memória
 
 # Pacotes -----------------------------------------------------------------
 library(readr)
@@ -12,77 +12,86 @@ library(mlr)
 library(forecast)
 library(doParallel)
 library(parallelMap)
+library(tigerstats)
 
 # Importanto bases ---------------------------------------------------------------
 ## Dados de suspeitos 
 covid <- read_csv("dados/covid_ajustado.csv")
 
 
-# Seleção das variáveis ------------------------------------------------
-# covid <- covid %>% 
-# 	dplyr::select(ID,
-# 		      RESULTADO,
-# 		      TERRITORIO,
-# 		      SEXO,
-# 		      MUNICIPIO,
-# 		      SUBTERRITORIO,
-# 		      TRIAGEM,
-# 		      RACA_COR,
-# 		      INICIO_SINTOMAS,
-# 		      TX_INFECTADOS_TERRITORIO,
-# 		      MEDIA_TRANSITO_LAG13,
-# 		      PROP_MASC,
-# 		      PERC_60_MAIS,
-# 		      PERC_NAO_BRANCA,
-# 		      PERC_ESC_10_MENOS)
-
-
 
 # Transformando base ------------------------------------------------------
-covid$ID <- as.character(covid$ID)
+covid$ID <- as.factor(covid$ID)
+covid$PROF_SAUDE <-  as.factor(covid$PROF_SAUDE)
+covid$DOR_GARGANTA <- as.factor(covid$DOR_GARGANTA)
+covid$DISPINEIA <- as.factor(covid$DISPINEIA)
+covid$FEBRE <- as.factor(covid$FEBRE)
+covid$TOSSE <- as.factor(covid$TOSSE)
+covid$TIPO_EXAME <-as.factor(covid$TIPO_EXAME)
 covid$RESULTADO <- as.factor(covid$RESULTADO)
-covid$TERRITORIO <- as.factor(covid$TERRITORIO)
-covid$SEXO <- as.factor(covid$SEXO)
-covid$MUNICIPIO <- as.factor(covid$MUNICIPIO)
-covid$SUBTERRITORIO <- as.factor(covid$SUBTERRITORIO)
-covid$TRIAGEM <- as.factor(covid$TRIAGEM)
-covid$RACA_COR <- as.factor(covid$RACA_COR)
-covid$INICIO_SINTOMAS <- as.numeric(covid$INICIO_SINTOMAS)#Transformando em número, pois o learner do mlr não trabalha com data
-covid$TX_INFECTADOS_TERRITORIO <- as.numeric(covid$TX_INFECTADOS_TERRITORIO)
-covid$MEDIA_TRANSITO_LAG13 <- as.numeric(covid$MEDIA_TRANSITO_LAG13)
-covid$PROP_MASC <- as.numeric(covid$PROP_MASC)
-covid$PERC_60_MAIS <- as.numeric(covid$PERC_60_MAIS)
-covid$PERC_NAO_BRANCA <- as.numeric(covid$PERC_NAO_BRANCA)
-covid$PERC_ESC_10_MENOS <- as.numeric(covid$PERC_ESC_10_MENOS)
-covid$FAIXA_ETARIA <- as.factor(covid$FAIXA_ETARIA)
+covid$TERRITORIO <-as.factor(covid$TERRITORIO)
+covid$SEXO <-as.factor(covid$SEXO)
+covid$SUBTERRITORIO <-as.factor(covid$SUBTERRITORIO)
+covid$TRIAGEM <-as.factor(covid$TRIAGEM)
+covid$RACA_COR <-as.factor(covid$RACA_COR)
+covid$FAIXA_ETARIA <-as.factor(covid$FAIXA_ETARIA)
+covid$INICIO_SINTOMAS <-  as.numeric(covid$INICIO_SINTOMAS)#Transformando em número, pois o learner do mlr não trabalha com data
+covid$DATA_NOTIFICACAO <- as.numeric(covid$DATA_NOTIFICACAO)#Transformando em número, pois o learner do mlr não trabalha com data
 
 
 # Formação das bases de treino, teste e predição --------------------------
 train_test_base <- subset(covid, covid$RESULTADO == "descartado" |
 	       	      covid$RESULTADO == "confirmado")
 train_test_base$RESULTADO <- factor(train_test_base$RESULTADO, levels = c("confirmado", "descartado"))
-set.seed(1)
-indice <- createDataPartition(train_test_base$RESULTADO, p = 0.7, list=FALSE)
-
-#Base de treino
-train_base <- train_test_base[indice,]
-summary(train_base)
-
-#Base de teste
-test_base <- train_test_base[-indice,]
-summary(test_base)
+summary(train_test_base)
 
 #Base para predição
 predic_base <- subset(covid, !(covid$RESULTADO %in% c("confirmado", "descartado")))
-predic_base$RESULTADO <- NULL
 summary(predic_base)
 
-# Realizando benchmarking de algoritmos de classificação ------------------
-parallelStartSocket(4)
+#Analisando distribuição das variáveis entre a base de treino_teste e a base de predição
+#Variáveis com muita diferença serão excluídas, pois não hã suporte na base de predição
+train_test_base$TIPO <- "train_test"
+predic_base$TIPO <- "predict"
 
-mod1_task <- makeClassifTask(data = train_base[,!(names(train_base) %in% c("ID"))], target = "RESULTADO")#Diversos algoritmos não trabalham com variáveis com muitas categorias e com datas por isso Início foi retirado
-confirmados <- sum(train_base$RESULTADO == "confirmado")
-descartados <- sum(train_base$RESULTADO == "descartado")
+base_comp <- rbind(train_test_base, predic_base) %>% as.data.frame()
+rowPerc(table(base_comp$TIPO, base_comp$TERRITORIO))
+rowPerc(table(base_comp$TIPO, base_comp$PROF_SAUDE)) # Retirar por estar muito desbalanceado entre as duas bases
+rowPerc(table(base_comp$TIPO, base_comp$SEXO))
+rowPerc(table(base_comp$TIPO, base_comp$DATA_NOTIFICACAO))
+rowPerc(table(base_comp$TIPO, base_comp$DOR_GARGANTA)) # Retirar por estar muito desbalanceado entre as duas bases
+rowPerc(table(base_comp$TIPO, base_comp$DISPINEIA)) # Retirar por estar muito desbalanceado entre as duas bases
+rowPerc(table(base_comp$TIPO, base_comp$FEBRE)) # Retirar por estar muito desbalanceado entre as duas bases
+rowPerc(table(base_comp$TIPO, base_comp$TOSSE)) # Retirar por estar muito desbalanceado entre as duas bases
+rowPerc(table(base_comp$TIPO, base_comp$RESULTADO))
+rowPerc(table(base_comp$TIPO, base_comp$TIPO_EXAME)) # Retirar por estar muito desbalanceado entre as duas bases
+rowPerc(table(base_comp$TIPO, base_comp$IDADE))
+rowPerc(table(base_comp$TIPO, base_comp$FAIXA_ETARIA))
+rowPerc(table(base_comp$TIPO, base_comp$TRIAGEM))
+rowPerc(table(base_comp$TIPO, base_comp$INFECTADOS_TERRITORIO))
+rowPerc(table(base_comp$TIPO, base_comp$TX_INFECTADOS_TERRITORIO))
+
+
+train_test_base$TIPO <- NULL
+train_test_base$PROF_SAUDE <- NULL
+train_test_base$DOR_GARGANTA <- NULL
+train_test_base$DISPINEIA <- NULL
+train_test_base$FEBRE <- NULL
+train_test_base$TOSSE <- NULL
+train_test_base$TIPO_EXAME <- NULL
+
+predic_base$TIPO <- NULL
+predic_base$PROF_SAUDE <- NULL
+predic_base$DOR_GARGANTA <- NULL
+predic_base$DISPINEIA <- NULL
+predic_base$FEBRE <- NULL
+predic_base$TOSSE <- NULL
+predic_base$TIPO_EXAME <- NULL
+
+# Realizando benchmarking de algoritmos de classificação ------------------
+mod1_task <- makeClassifTask(data = train_test_base[,!(names(train_test_base) %in% c("ID"))], target = "RESULTADO")#Diversos algoritmos não trabalham com variáveis com muitas categorias e com datas por isso Início foi retirado
+confirmados <- sum(train_test_base$RESULTADO == "confirmado")
+descartados <- sum(train_test_base$RESULTADO == "descartado")
 ## Como há muitos mais casos descartados que confirmados utilizou-se smote para balanceamento
 mod1_task_smote <- smote(mod1_task, rate = descartados/confirmados, nn = 5)
 
@@ -91,19 +100,7 @@ mod1_task_smote <- smote(mod1_task, rate = descartados/confirmados, nn = 5)
 # Filtragem de features com  tuning no inner resampling loop
 ## Filtro das features
 #listFilterMethods()
-gbm <- makeFilterWrapper(learner = 'classif.gbm', fw.method = "FSelector_gain.ratio") 
 rf <- makeFilterWrapper(learner = 'classif.ranger', fw.method = "FSelector_gain.ratio")
-svm <- makeFilterWrapper(learner = 'classif.ksvm', fw.method = "FSelector_gain.ratio")
-
-## Paramentros a serem tunados
-ps_gbm <- makeParamSet(      
-		makeIntegerLearnerParam(id = "n.trees", lower = 1L, upper = 2000L),
-	        makeIntegerLearnerParam(id = "interaction.depth", lower = 1L, upper = 5L),
-	        makeIntegerLearnerParam(id = "n.minobsinnode", lower = 1L, upper = 3L),
-	        makeNumericLearnerParam(id = "shrinkage", lower = 0, upper = 0.5),
-	        makeNumericLearnerParam(id = "bag.fraction", lower = 0, upper = 1),
-		makeDiscreteParam("fw.perc", values = seq(0.2, 1, 0.05))
-	)
 ps_rf <- makeParamSet( 
 	      makeIntegerLearnerParam(id = "num.trees", lower = 1L, upper = 2000L),
 	      makeIntegerLearnerParam(id = "mtry", lower = 1L,upper = 10L),
@@ -111,85 +108,59 @@ ps_rf <- makeParamSet(
 	      makeNumericLearnerParam(id = "sample.fraction", lower = 0L, upper = 1L),
 	      makeDiscreteParam("fw.perc", values = seq(0.2, 1, 0.05))
 	 )
-ps_svm <- makeParamSet(
-		  makeNumericParam("C", lower = -10, upper = 10, trafo = function(x) 10^x),
-  		  makeNumericParam("sigma", lower = -10, upper = 10, trafo = function(x) 10^x),
-		  makeDiscreteParam("fw.perc", values = seq(0.2, 1, 0.05))
-  	  )
 ## Estratégia de hyperparametrização - grid search
-ctrl <- makeTuneControlRandom(maxit = 100L)
+ctrl <- makeTuneControlRandom(maxit = 10L)
 ## Estratégia de ressampling do inner loop - validação cruzada com estratificação dos resultados balanceados entre as folds
 inner <- makeResampleDesc("CV", iter = 5, stratify = TRUE)
 #measures https://mlr.mlr-org.com/articles/tutorial/measures.html
-## learnes ajustados para filtragem e tuning
-lrn_gbm <- makeTuneWrapper(learner = gbm, resampling = inner, par.set = ps_gbm, control = ctrl,
-  show.info = FALSE, measures = bac)
+## learner ajustados para filtragem e tuning
 lrn_rf <- makeTuneWrapper(learner = rf, resampling = inner, par.set = ps_rf, control = ctrl,
-  show.info = FALSE, measures = bac)
-lrn_svm <- makeTuneWrapper(learner = svm, resampling = inner, par.set = ps_svm, control = ctrl,
-  show.info = FALSE, measures = bac)
-# Lista de Learners
-lrns <- list(lrn_gbm, lrn_rf, lrn_svm)
+  show.info = T)
 
 ## Estratégia de ressampling do outer loop - validação cruzada com estratificação dos resultados balanceados entre as folds
-outer <- makeResampleDesc("CV", iter = 5, stratify = TRUE)
+outer <- makeResampleDesc("CV", iter = 5, predict = "both", stratify = TRUE)
 
-## Rodando o benchmark
-res <- benchmark(tasks = mod1_task_smote, learners = lrns, resampling = outer, show.info = T, models = TRUE, measures = bac)
-getBMRAggrPerformances(res, as.df = T)
-getBMRPerformances(res, as.df = T)
-plotBMRBoxplots(res, measure = bac)
+#Iniciando paralelização
+parallelStartSocket(4)
 
-## Tunning com algoritmo selecionado na base de treino
+## Tunning com algoritmo selecionado 
 set.seed(1)
-tune_train <- tuneParams(learner = rf, task = mod1_task_smote, resampling = outer, show.info = FALSE, 
-		       measure = bac, par.set = ps_rf, control = ctrl)
+mod_train <- mlr::resample(learner = lrn_rf, task = mod1_task_smote, resampling = outer, models = TRUE, show.info = FALSE, 
+		      measure = bac, extract = getTuneResult)
+predicoes <- mod_train$pred$data
+predicoes_treino <- subset(predicoes, predicoes$set == "train")
+predicoes_teste <- subset(predicoes, predicoes$set == "test")
 
-## Resultado na base de treino
-lrn_train <- setHyperPars(makeFilterWrapper(learner = "classif.ranger", fw.method = "FSelector_gain.ratio"), 
-			  par.vals = tune_train$x)
+#Predições treino
+confusionMatrix(data = predicoes_treino$response, reference = predicoes_treino$truth)
+#confusionMatrix(data = mod_train$pred$data$response, reference = mod_train$pred$data$truth, mode = "prec_recall")
 
-mod_train <- resample(learner = lrn_train, task = mod1_task_smote, resampling = outer, models = TRUE, show.info = FALSE, 
-		       measure = bac)
-confusionMatrix(data = mod_train$pred$data$response, reference = mod_train$pred$data$truth)
-confusionMatrix(data = mod_train$pred$data$response, reference = mod_train$pred$data$truth, mode = "prec_recall")
+#Predições teste
+confusionMatrix(data = predicoes_teste$response, reference = predicoes_teste$truth)
+#confusionMatrix(data = predicoes_teste$response, reference = predicoes_teste$truth, mode = "prec_recall")
 
-## Resultado na base de teste - utilizando o mesmo threashold para feature selection e os hyperparamentros tunados na base de traino
-set.seed(1)
-mod2_task <- makeClassifTask(data = test_base[,!(names(test_base) %in% c("ID"))], target = "RESULTADO")
-confirmados <- sum(test_base$RESULTADO == "confirmado")
-descartados <- sum(test_base$RESULTADO == "descartado")
-mod2_task_smote <- smote(mod2_task, rate = descartados/confirmados, nn = 5)
-mod_test <- train(lrn_train, mod2_task)
-test_base$PREDICAO <- predict(mod_test, newdata = test_base[,names(test_base) != c("ID", "RESULTADO")])$data[,1]
-confusionMatrix(data = test_base$PREDICAO, reference = test_base$RESULTADO)
-confusionMatrix(data = test_base$PREDICAO, reference = test_base$RESULTADO, mode = "prec_recall")
-getFeatureImportance(mod_test)
-generateFeatureImportanceData(
-	  mod2_task_smote,
-	  method = "permutation.importance",
-	  lrn_train,
-	  features = getTaskFeatureNames(mod2_task_smote),
-	  interaction = FALSE,
-	  measure = bac,
-	  contrast = function(x, y) x - y,
-	  aggregation = mean,
-	  nmc = 50L,
-	  replace = TRUE,
-	  local = FALSE,
-	  show.info = FALSE
-)
 
+## Exração de hiperparâmentros
+mmce_resultados <- list()
+for(i in 1:5){
+	mmce_resultados[[i]] <- mod_train$extract[[i]]$y 
+}
+
+mmce_resultados <- do.call(rbind, mmce_resultados) %>% as.data.frame()
+mmce_resultados$iteracao <- c(1:nrow(mmce_resultados))
+iteracao <- mmce_resultados[which(mmce_resultados$mmce.test.mean == min(mmce_resultados$mmce.test.mean)) , 2]
+
+tunned_model <- mod_train$models[[iteracao]] #modelo tunado
+
+tuned_par <- mod_train$extract[[iteracao]]$x #para ver hiperparâmetros
 
 ## Predição dos dados faltantes
-
-predic_base$RESULTADO <- predict(mod_test, newdata = predic_base[,names(predic_base) != "ID"])$data[,1]
+mod2_task <- makeClassifTask(data = predic_base[,!(names(predic_base) %in% c("ID"))], target = "RESULTADO")#Diversos algoritmos não trabalham com variáveis com muitas categorias e com datas por isso Início foi retirado
+predic_base$RESULTADO <- predict(tunned_model, mod2_task)$data[,3]
 predic_base$RESULTADO <- as.character(predic_base$RESULTADO)
 
-
+#Parando paralelização
 parallelStop()
-
-sum(predic_base$RESULTADO == "confirmado")
 
 # Plotando predição -------------------------------------------------------
 #Dados atuais
@@ -213,13 +184,10 @@ cum_train <- subset(cum_train, cum_train$INICIO_SINTOMAS > as.Date("2020-02-01",
 
 #Dados totais = atuiais + preditos
 predic_base$DADOS <- "Preditos"
-train_base$DADOS <- "Atuais"
-test_base$DADOS <- "Atuais"
+train_test_base$DADOS <- "Atuais"
 predic_base$INICIO_SINTOMAS <- as.Date(predic_base$INICIO_SINTOMAS, origin = "1970-01-01")
-train_base$INICIO_SINTOMAS <- as.Date(train_base$INICIO_SINTOMAS, origin = "1970-01-01")
-test_base$INICIO_SINTOMAS <- as.Date(test_base$INICIO_SINTOMAS, origin = "1970-01-01")
-base_final <- rbind(predic_base, train_base) %>% as.data.frame()
-base_final <- rbind(base_final, test_base[,names(test_base) != "PREDICAO"]) %>% as.data.frame()
+train_test_base$INICIO_SINTOMAS <- as.Date(train_test_base$INICIO_SINTOMAS, origin = "1970-01-01")
+base_final <- rbind(predic_base, train_test_base) %>% as.data.frame()
 base_final <- merge(base_final, covid_id, by = c("ID", "INICIO_SINTOMAS"), all = T)
 cum_base <- subset(base_final, base_final$RESULTADO == "confirmado")
 cum_base$NUMERO <- 1
