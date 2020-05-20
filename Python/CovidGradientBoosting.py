@@ -9,7 +9,7 @@ import pandas as pd
 import numpy as np
 from imblearn.over_sampling import SMOTE
 from sklearn.preprocessing import MinMaxScaler
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.inspection import permutation_importance
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import train_test_split
@@ -63,14 +63,14 @@ xTreino = xTreino.values
 yTreino = yTreino.values
 
 #Define o classificador
-classifier = RandomForestClassifier(class_weight="balanced", random_state=1986)
+classifier = GradientBoostingClassifier(random_state=1986)
 
 #Treina com todos registros
 classifier.fit(xTreino, yTreino) 
 
 #Define o scoring
 scoring = ['accuracy', 'balanced_accuracy', 'average_precision', 'recall', 'jaccard']
-score = 'average_precision'
+score = 'balanced_accuracy'
 
 #Permutation Importance
 print('\nPermutation Importance')
@@ -96,14 +96,11 @@ kfold = StratifiedKFold(n_splits=5, shuffle=True, random_state=1986)
 
 #Grid Search
 paramGrid = {
-        'criterion': ['entropy', 'gini'],
-        'n_estimators': [3, 25, 50, 100],
-        'max_depth': [None, 3, 5],
-        'min_samples_split': [2, 5],
-        'min_samples_leaf': [1, 3, 5],
-        'min_weight_fraction_leaf': [0, 2, 5],
-        'max_features': ['auto', 0.1, 0.2, 0.5],
-        'bootstrap': [False, True],
+        'loss': ['deviance', 'exponential'],
+        'learning_rate': [0.1, 0.5],
+        'n_estimators': [5, 25],
+        'subsample': [1, 5],
+        'criterion': ['friedman_mse', 'mse', 'mae']
         }
 
 #Faz o processamento de treinamento com Tuning e Feature Selection
