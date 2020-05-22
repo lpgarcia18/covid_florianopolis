@@ -18,8 +18,6 @@ library(tigerstats)
 ## Dados de suspeitos 
 covid <- read_csv("dados/covid_ajustado.csv")
 
-
-
 # Transformando base ------------------------------------------------------
 covid$ID <- as.factor(covid$ID)
 covid$PROF_SAUDE <-  as.factor(covid$PROF_SAUDE)
@@ -88,19 +86,34 @@ predic_base$FEBRE <- NULL
 predic_base$TOSSE <- NULL
 predic_base$TIPO_EXAME <- NULL
 
+
+# Separando a base de traino_validacao da base de teste
+indice <- createDataPartition(train_test_base$RESULTADO, p = 0.7, list=FALSE)
+
+#Base de treino
+train_base <- train_test_base[indice,]
+summary(train_base)
+
+#Base de teste
+test_base <- train_test_base[-indice,]
+summary(test_base)
+
+
+
 # Realizando benchmarking de algoritmos de classificação ------------------
-mod1_task <- makeClassifTask(data = train_test_base[,!(names(train_test_base) %in% c("ID"))], target = "RESULTADO")#Diversos algoritmos não trabalham com variáveis com muitas categorias e com datas por isso Início foi retirado
-confirmados <- sum(train_test_base$RESULTADO == "confirmado")
-descartados <- sum(train_test_base$RESULTADO == "descartado")
+mod1_task <- makeClassifTask(data = train_base[,!(names(train_base) %in% c("ID"))], target = "RESULTADO")#Diversos algoritmos não trabalham com variáveis com muitas categorias e com datas por isso Início foi retirado
+confirmados <- sum(train_base$RESULTADO == "confirmado")
+descartados <- sum(train_base$RESULTADO == "descartado")
 ## Como há muitos mais casos descartados que confirmados utilizou-se smote para balanceamento
 mod1_task_smote <- smote(mod1_task, rate = descartados/confirmados, nn = 5)
+mod1_task_under <- undersample(mod1_task, rate = confirmados/descartados)
 
 ## Três algorítmos foram comparados gbm, rf e svm
 ## Escolheu-se a acurárcia balanceada como métrica de maximização
 # Filtragem de features com  tuning no inner resampling loop
 ## Filtro das features
 #listFilterMethods()
-rf <- makeFilterWrapper(learner = 'classif.ranger', fw.method = "FSelector_gain.ratio")
+rf <- makeFilterWrapper(learner = 'classif.ranger', fw.method = "ranger_permutation")
 ps_rf <- makeParamSet( 
 	      makeIntegerLearnerParam(id = "num.trees", lower = 1L, upper = 2000L),
 	      makeIntegerLearnerParam(id = "mtry", lower = 1L,upper = 10L),
@@ -111,38 +124,39 @@ ps_rf <- makeParamSet(
 ## Estratégia de hyperparametrização - grid search
 ctrl <- makeTuneControlRandom(maxit = 10L)
 ## Estratégia de ressampling do inner loop - validação cruzada com estratificação dos resultados balanceados entre as folds
-inner <- makeResampleDesc("CV", iter = 5, stratify = TRUE)
+folds <- 5
+inner <- makeResampleDesc("CV", iter = folds, stratify = TRUE)
 #measures https://mlr.mlr-org.com/articles/tutorial/measures.html
 ## learner ajustados para filtragem e tuning
 lrn_rf <- makeTuneWrapper(learner = rf, resampling = inner, par.set = ps_rf, control = ctrl,
   show.info = T)
 
 ## Estratégia de ressampling do outer loop - validação cruzada com estratificação dos resultados balanceados entre as folds
-outer <- makeResampleDesc("CV", iter = 5, predict = "both", stratify = TRUE)
+outer <- makeResampleDesc("CV", iter = folds, predict = "both", stratify = TRUE)
 
 #Iniciando paralelização
 parallelStartSocket(4)
 
 ## Tunning com algoritmo selecionado 
 set.seed(1)
-mod_train <- mlr::resample(learner = lrn_rf, task = mod1_task_smote, resampling = outer, models = TRUE, show.info = FALSE, 
-		      measure = bac, extract = getTuneResult)
+mod_train <- mlr::resample(learner = lrn_rf, task = mod1_task_under, resampling = outer, models = TRUE, show.info = FALSE, 
+		      measure = fpr, extract = getTuneResult)
 predicoes <- mod_train$pred$data
 predicoes_treino <- subset(predicoes, predicoes$set == "train")
-predicoes_teste <- subset(predicoes, predicoes$set == "test")
+predicoes_validacao <- subset(predicoes, predicoes$set == "test")
 
 #Predições treino
 confusionMatrix(data = predicoes_treino$response, reference = predicoes_treino$truth)
 #confusionMatrix(data = mod_train$pred$data$response, reference = mod_train$pred$data$truth, mode = "prec_recall")
 
-#Predições teste
-confusionMatrix(data = predicoes_teste$response, reference = predicoes_teste$truth)
-#confusionMatrix(data = predicoes_teste$response, reference = predicoes_teste$truth, mode = "prec_recall")
+#Predições validação
+confusionMatrix(data = predicoes_validacao$response, reference = predicoes_validacao$truth)
+#confusionMatrix(data = predicoes_validacao$response, reference = predicoes_validacao$truth, mode = "prec_recall")
 
 
 ## Exração de hiperparâmentros
 mmce_resultados <- list()
-for(i in 1:5){
+for(i in 1:folds){ 
 	mmce_resultados[[i]] <- mod_train$extract[[i]]$y 
 }
 
@@ -155,8 +169,18 @@ tunned_model <- mod_train$models[[iteracao]] #modelo tunado
 tuned_par <- mod_train$extract[[iteracao]]$x #para ver hiperparâmetros
 
 ## Predição dos dados faltantes
-mod2_task <- makeClassifTask(data = predic_base[,!(names(predic_base) %in% c("ID"))], target = "RESULTADO")#Diversos algoritmos não trabalham com variáveis com muitas categorias e com datas por isso Início foi retirado
-predic_base$RESULTADO <- predict(tunned_model, mod2_task)$data[,3]
+mod2_task <- makeClassifTask(data = test_base[,!(names(test_base) %in% c("ID"))], target = "RESULTADO")
+set.seed(1)
+test_base$PREDITO <- predict(tunned_model, mod2_task)$data[,3]
+predic_base$RESULTADO <- as.character(predic_base$RESULTADO)
+confusionMatrix(data = test_base$PREDITO, reference = test_base$RESULTADO)
+#confusionMatrix(data = test_base$PREDITO, reference = test_base$RESULTADO, mode = "prec_recall")
+
+
+## Predição dos dados faltantes
+mod3_task <- makeClassifTask(data = predic_base[,!(names(predic_base) %in% c("ID"))], target = "RESULTADO")
+set.seed(1)
+predic_base$RESULTADO <- predict(tunned_model, mod3_task)$data[,3]
 predic_base$RESULTADO <- as.character(predic_base$RESULTADO)
 
 #Parando paralelização
