@@ -2,7 +2,7 @@
 options(scipen=999)
 gc()
 set.seed(1)
-options(java.parameters = "-Xmx16g") #Evitar que o java tenha problemas de memória
+options(java.parameters = "-Xmx10g") #Evitar que o java tenha problemas de memória
 
 # Pacotes -----------------------------------------------------------------
 library(readr)
@@ -39,7 +39,7 @@ covid$DATA_NOTIFICACAO <- as.numeric(covid$DATA_NOTIFICACAO)#Transformando em n�
 
 # Formação das bases de treino, teste e predição --------------------------
 train_test_base <- subset(covid, covid$RESULTADO == "descartado" |
-	       	      covid$RESULTADO == "confirmado")
+			  	covid$RESULTADO == "confirmado")
 train_test_base$RESULTADO <- factor(train_test_base$RESULTADO, levels = c("confirmado", "descartado"))
 summary(train_test_base)
 
@@ -105,8 +105,10 @@ mod1_task <- makeClassifTask(data = train_base[,!(names(train_base) %in% c("ID")
 confirmados <- sum(train_base$RESULTADO == "confirmado")
 descartados <- sum(train_base$RESULTADO == "descartado")
 ## Como há muitos mais casos descartados que confirmados utilizou-se smote para balanceamento
-mod1_task_smote <- smote(mod1_task, rate = descartados/confirmados, nn = 5)
+mod1_task_smote <- smote(mod1_task, rate = (descartados/2)/confirmados, nn = 5)
 mod1_task_under <- undersample(mod1_task, rate = confirmados/descartados)
+mod1_task_over <- oversample(mod1_task, rate = descartados/confirmados)
+
 
 ## Três algorítmos foram comparados gbm, rf e svm
 ## Escolheu-se a acurárcia balanceada como métrica de maximização
@@ -115,21 +117,21 @@ mod1_task_under <- undersample(mod1_task, rate = confirmados/descartados)
 #listFilterMethods()
 rf <- makeFilterWrapper(learner = 'classif.ranger', fw.method = "ranger_permutation")
 ps_rf <- makeParamSet( 
-	      makeIntegerLearnerParam(id = "num.trees", lower = 1L, upper = 2000L),
-	      makeIntegerLearnerParam(id = "mtry", lower = 1L,upper = 10L),
-	      makeIntegerLearnerParam(id = "min.node.size", lower = 1L, upper = 10L),
-	      makeNumericLearnerParam(id = "sample.fraction", lower = 0L, upper = 1L),
-	      makeDiscreteParam("fw.perc", values = seq(0.2, 1, 0.05))
-	 )
+	makeIntegerLearnerParam(id = "num.trees", lower = 100L, upper = 2000L),
+	makeIntegerLearnerParam(id = "mtry", lower = 1L,upper = 50L),
+	makeIntegerLearnerParam(id = "min.node.size", lower = 1L, upper = 10L),
+	makeNumericLearnerParam(id = "sample.fraction", lower = 0L, upper = 1L),
+	makeDiscreteParam("fw.perc", values = seq(0.2, 1, 0.05))
+)
 ## Estratégia de hyperparametrização - grid search
-ctrl <- makeTuneControlRandom(maxit = 10L)
+ctrl <- makeTuneControlRandom(maxit = 5L)
 ## Estratégia de ressampling do inner loop - validação cruzada com estratificação dos resultados balanceados entre as folds
 folds <- 5
 inner <- makeResampleDesc("CV", iter = folds, stratify = TRUE)
 #measures https://mlr.mlr-org.com/articles/tutorial/measures.html
 ## learner ajustados para filtragem e tuning
 lrn_rf <- makeTuneWrapper(learner = rf, resampling = inner, par.set = ps_rf, control = ctrl,
-  show.info = T)
+			  show.info = T, measure = bac)
 
 ## Estratégia de ressampling do outer loop - validação cruzada com estratificação dos resultados balanceados entre as folds
 outer <- makeResampleDesc("CV", iter = folds, predict = "both", stratify = TRUE)
@@ -137,10 +139,13 @@ outer <- makeResampleDesc("CV", iter = folds, predict = "both", stratify = TRUE)
 #Iniciando paralelização
 parallelStartSocket(4)
 
-## Tunning com algoritmo selecionado 
+ 
+# Get a warning instead of an error
+configureMlr(on.learner.error = "warn")
+## Tunning com algoritmo selecionado
 set.seed(1)
 mod_train <- mlr::resample(learner = lrn_rf, task = mod1_task_under, resampling = outer, models = TRUE, show.info = FALSE, 
-		      measure = fpr, extract = getTuneResult)
+			   measure = bac, extract = getTuneResult)
 predicoes <- mod_train$pred$data
 predicoes_treino <- subset(predicoes, predicoes$set == "train")
 predicoes_validacao <- subset(predicoes, predicoes$set == "test")
@@ -156,19 +161,19 @@ confusionMatrix(data = predicoes_validacao$response, reference = predicoes_valid
 
 ## Exração de hiperparâmentros
 mmce_resultados <- list()
-for(i in 1:folds){ 
+for(i in 1:length(mod_train$extract)){ 
 	mmce_resultados[[i]] <- mod_train$extract[[i]]$y 
 }
 
 mmce_resultados <- do.call(rbind, mmce_resultados) %>% as.data.frame()
 mmce_resultados$iteracao <- c(1:nrow(mmce_resultados))
-iteracao <- mmce_resultados[which(mmce_resultados$mmce.test.mean == min(mmce_resultados$mmce.test.mean)) , 2]
+iteracao <- mmce_resultados[which(mmce_resultados$bac.test.mean == min(mmce_resultados$bac.test.mean, na.rm = T)) , 2]
 
 tunned_model <- mod_train$models[[iteracao]] #modelo tunado
 
 tuned_par <- mod_train$extract[[iteracao]]$x #para ver hiperparâmetros
 
-## Predição dos dados faltantes
+## Predição na base de teste
 mod2_task <- makeClassifTask(data = test_base[,!(names(test_base) %in% c("ID"))], target = "RESULTADO")
 set.seed(1)
 test_base$PREDITO <- predict(tunned_model, mod2_task)$data[,3]
@@ -201,8 +206,8 @@ cum_train <- cum_train %>%
 	summarise(CASOS = sum(NUMERO, na.rm = T))
 cum_train$CUM_CASOS <- cumsum(cum_train$CASOS) 
 cum_train$DADOS <- "Atuais"
-cum_train <- subset(cum_train, cum_train$INICIO_SINTOMAS > as.Date("2020-02-01", format = "%Y-%m-%d") &
-		    	cum_train$INICIO_SINTOMAS < Sys.Date())
+# cum_train <- subset(cum_train, cum_train$INICIO_SINTOMAS > as.Date("2020-02-01", format = "%Y-%m-%d") &
+# 		    	cum_train$INICIO_SINTOMAS < Sys.Date())
 
 
 
@@ -221,12 +226,12 @@ cum_base <- cum_base %>%
 	summarise(CASOS = sum(NUMERO, na.rm = T))
 cum_base$CUM_CASOS <- cumsum(cum_base$CASOS) 
 cum_base$DADOS <- "Totais"
-cum_base <- subset(cum_base, cum_base$INICIO_SINTOMAS > as.Date("2020-02-01", format = "%Y-%m-%d") &
-		    	cum_base$INICIO_SINTOMAS < Sys.Date())
+# cum_base <- subset(cum_base, cum_base$INICIO_SINTOMAS > as.Date("2020-02-01", format = "%Y-%m-%d") &
+# 		   	cum_base$INICIO_SINTOMAS < Sys.Date())
 
 cum_base <- rbind(cum_train, cum_base) %>% as.data.frame()
 
-cum_base <- subset(cum_base, !is.na(cum_base$INICIO_SINTOMAS))
+# cum_base <- subset(cum_base, !is.na(cum_base$INICIO_SINTOMAS))
 
 
 # Plotando RESULTADOs -----------------------------------------------------
@@ -234,25 +239,19 @@ ggplot(cum_base, aes(as.Date(INICIO_SINTOMAS), CUM_CASOS, group = DADOS, color =
 	geom_line()+
 	theme_bw()+
 	labs(y = "Número de Casos", 
-	     x = "Data dos Primeiros Sintomas")+
-	theme(axis.text.x = element_text(angle = 90, hjust = 1))+
-	scale_x_date(date_breaks = "1 day",   date_labels = "%d/%m/%Y")+
-  	theme(axis.text.x = element_text(angle=45, hjust = 1))
+	     x = "Data dos Primeiros Sintomas")
 
 ggplot(cum_base, aes(as.Date(INICIO_SINTOMAS), CASOS, group = DADOS, color = DADOS))+
 	geom_line()+
 	theme_bw()+
 	labs(y = "Número de Casos", 
-	     x = "Data dos Primeiros Sintomas")+
-	theme(axis.text.x = element_text(angle = 90, hjust = 1))+
-	scale_x_date(date_breaks = "1 day",   date_labels = "%d/%m/%Y")+
-  	theme(axis.text.x = element_text(angle=45, hjust = 1))
+	     x = "Data dos Primeiros Sintomas")
 
 
 # Exportando base ---------------------------------------------------------
 write.csv(cum_base, "dados/covid_atuais_preditos.csv", row.names = F, fileEncoding = "UTF-8")
 cum_pred <- subset(cum_base, cum_base$DADOS == "Totais")
 write.csv(cum_base, "dados/covid_preditos.csv", row.names = F, fileEncoding = "UTF-8")
-	
+
 
 

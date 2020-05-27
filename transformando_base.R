@@ -9,8 +9,8 @@ library(readxl)
 library(tidyverse)
 library(reshape2)
 library(purrr)
+#devtools::install_github("tidyverse/googlesheets4")
 library(googlesheets4)
-
 
 # Funcões -----------------------------------------------------------------
 ## Ler as tabelas dentro da planilha de excel
@@ -150,9 +150,6 @@ covid <- read_csv("dados/covid_anonimizado.csv")
 
 # Transformando base ------------------------------------------------------
 
-# Excluindo entradas que não possuem data de início dos sintomas, pois essa informação é fundamental para se analisar a incidência
-covid <- subset(covid, !is.na(covid$`Data do início dos sintomas`))
-
 # Convertendo, ajustando e criando variáveis
 covid <- sapply(covid, as.character) %>% as.data.frame()
 covid <- sapply(covid, tolower) %>% as.data.frame()
@@ -230,6 +227,17 @@ covid[which(covid$Bairro == "umarizal"),names(covid) == "Bairro"]<- "outro"
 covid[which(covid$Bairro == "vargem do bom jesus"),names(covid) == "Bairro"]<- "canasvieiras"
 covid[which(covid$Bairro == "varginha"),names(covid) == "Bairro"]<- "outro"
 covid[which(covid$Bairro == "vila suzana"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "gracas"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "aririu"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "bom viver"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "caeira da barra do sul"),names(covid) == "Bairro"]<- "caieira da barra do sul"
+covid[which(covid$Bairro == "forquilhinhas"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "guarda do cubatao"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "itaquera"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "parque albina"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "rio pequeno"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "sem denominacao"),names(covid) == "Bairro"]<- "outro"
+covid[which(covid$Bairro == "vila sao geraldo"),names(covid) == "Bairro"]<- "outro"
 
 covid$Bairro <- ifelse(is.na(covid$Bairro) | covid$Bairro == "outro", covid$Bairro, paste0("cs ",covid$Bairro))
 covid$Bairro <- ajustar_nomes(covid$Bairro)
@@ -262,9 +270,6 @@ covid$TRIAGEM <- ifelse(covid$`Data do início dos sintomas` < as.Date("2020-03-
 covid$`Município de residência` <- as.character(covid$`Município de residência`)
 covid$`Município de residência` <- ifelse(covid$`Município de residência` == "florianopolis", "florianopolis", "outro")
 
-
-## Utilizando data de notificação se data de primeiro sintoma for nula
-covid$`Data do início dos sintomas` <- ifelse(is.na(covid$`Data do início dos sintomas`), covid$`Data da notificação` ,covid$`Data do início dos sintomas`)
 
 ## Mantendo apenas resultados "confirmado" ou "descartado" ou "não detectado" (essas duas últimas categorias são a mesma coisa). 
 ## Os pacientes aguardando resultado ou com resultado inconclusivo foram classificados como missing
@@ -374,7 +379,7 @@ covid$`FAIXA_ETARIA` <-fct_explicit_na(covid$`FAIXA_ETARIA`, "missing")
 covid$`TRIAGEM` <-fct_explicit_na(covid$`TRIAGEM`, "missing")
 covid$`INFECTADOS_TERRITORIO` <-fct_explicit_na(covid$`INFECTADOS_TERRITORIO`, "missing")
 
-covid$`Data da notificação` <- as.Date(covid$`Data da notificação`, format = "%d/%m/%Y")
+covid$`Data da notificação` <- as.Date(covid$`Data da notificação`, format = "%Y-%m-%d")
 
 ## Com a quantidade de missim em Sexo e Idade é pequeno esses dados foram retirados para que não haja problemas na paralelização
 covid <- subset(covid, covid$Sexo != "missing")
@@ -461,32 +466,32 @@ transito <- na.omit(transito)
 names(transito) <- c("INICIO_SINTOMAS", "MEDIA_TRANSITO")
 transito$INICIO_SINTOMAS <- as.Date(transito$INICIO_SINTOMAS, format = "%d/%m/%Y")
 transito_lag1 <- transito
-transito_lag1$INICIO_SINTOMAS <- transito_lag1$INICIO_SINTOMAS - 1
+transito_lag1$INICIO_SINTOMAS <- transito_lag1$INICIO_SINTOMAS + 1
 transito_lag2 <- transito
-transito_lag2$INICIO_SINTOMAS <- transito_lag2$INICIO_SINTOMAS - 2
+transito_lag2$INICIO_SINTOMAS <- transito_lag2$INICIO_SINTOMAS + 2
 transito_lag3 <- transito
-transito_lag3$INICIO_SINTOMAS <- transito_lag3$INICIO_SINTOMAS - 3
+transito_lag3$INICIO_SINTOMAS <- transito_lag3$INICIO_SINTOMAS + 3
 transito_lag4 <- transito
-transito_lag4$INICIO_SINTOMAS <- transito_lag4$INICIO_SINTOMAS - 4
+transito_lag4$INICIO_SINTOMAS <- transito_lag4$INICIO_SINTOMAS + 4
 transito_lag5 <- transito
-transito_lag5$INICIO_SINTOMAS <- transito_lag5$INICIO_SINTOMAS - 5
+transito_lag5$INICIO_SINTOMAS <- transito_lag5$INICIO_SINTOMAS + 5
 transito_lag6 <- transito
-transito_lag6$INICIO_SINTOMAS <- transito_lag6$INICIO_SINTOMAS - 6
+transito_lag6$INICIO_SINTOMAS <- transito_lag6$INICIO_SINTOMAS + 6
 transito_lag7 <- transito
-transito_lag7$INICIO_SINTOMAS <- transito_lag7$INICIO_SINTOMAS - 7
+transito_lag7$INICIO_SINTOMAS <- transito_lag7$INICIO_SINTOMAS + 7
 transito_lag8 <- transito
-transito_lag8$INICIO_SINTOMAS <- transito_lag8$INICIO_SINTOMAS - 8
+transito_lag8$INICIO_SINTOMAS <- transito_lag8$INICIO_SINTOMAS + 8
 transito_lag9 <- transito
-transito_lag9$INICIO_SINTOMAS <- transito_lag9$INICIO_SINTOMAS - 9
+transito_lag9$INICIO_SINTOMAS <- transito_lag9$INICIO_SINTOMAS + 9
 transito_lag10 <- transito
-transito_lag10$INICIO_SINTOMAS <- transito_lag10$INICIO_SINTOMAS - 10
+transito_lag10$INICIO_SINTOMAS <- transito_lag10$INICIO_SINTOMAS + 10
 transito_lag11 <- transito
-transito_lag11$INICIO_SINTOMAS <- transito_lag11$INICIO_SINTOMAS - 11
+transito_lag11$INICIO_SINTOMAS <- transito_lag11$INICIO_SINTOMAS + 11
 transito_lag12 <- transito
-transito_lag12$INICIO_SINTOMAS <- transito_lag12$INICIO_SINTOMAS - 12
+transito_lag12$INICIO_SINTOMAS <- transito_lag12$INICIO_SINTOMAS + 12
 transito_lag13 <- transito
-transito_lag13$INICIO_SINTOMAS <- transito_lag13$INICIO_SINTOMAS - 13
-transito <- Reduce(function(x,y) merge(x = x, y = y, by = c("INICIO_SINTOMAS"), all = T), 
+transito_lag13$INICIO_SINTOMAS <- transito_lag13$INICIO_SINTOMAS + 13
+transito <- Reduce(function(x,y) merge(x = x, y = y, by = c("INICIO_SINTOMAS"), all = T),
        		list(transito,
        		     transito_lag1,
        		     transito_lag2,
@@ -502,6 +507,8 @@ transito <- Reduce(function(x,y) merge(x = x, y = y, by = c("INICIO_SINTOMAS"), 
        		     transito_lag12,
        		     transito_lag13
 )) %>% as.data.frame()
+
+
 
 names(transito) <- c("INICIO_SINTOMAS",
 		     "MEDIA_TRANSITO",
@@ -521,9 +528,6 @@ names(transito) <- c("INICIO_SINTOMAS",
 
 covid <- merge(covid, transito, by = "INICIO_SINTOMAS", all = T)
 
-## Extraindo datas de início de sintomas que foram digitadas erradas
-covid <- subset(covid, covid$INICIO_SINTOMAS > as.Date("2020-02-01", format = "%Y-%m-%d"))
-covid <- subset(covid, covid$INICIO_SINTOMAS < (Sys.Date()+1))
 
 ## Extraindo dados missing que foram inseridos com a base de transito
 covid <- na.omit(covid)
