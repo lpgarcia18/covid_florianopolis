@@ -26,9 +26,27 @@ meusDados.head()
 #Totaliza os dados da coluna Resultado
 meusDados.groupby('RESULTADO').size()
 
-#Conta qtos Município a base possui
-meusDados['MUNICIPIO'].value_counts()
-len(meusDados['MUNICIPIO'].value_counts())
+#Totaliza os dados das colunas de sintomas
+meusDados.groupby('PROF_SAUDE').size()
+meusDados.groupby('FEBRE').size()
+meusDados.groupby('TOSSE').size()
+meusDados.groupby('DOR_GARGANTA').size()
+meusDados.groupby('DISPINEIA').size()
+
+#Totaliza os dados das colunas de sintomas considerando apenas as ocorrências com resultdo
+meusDados.query('RESULTADO == "confirmado"')[['PROF_SAUDE', 'FEBRE', 'TOSSE', 'DOR_GARGANTA', 'DISPINEIA']]
+meusDados.query('RESULTADO == "descartado" or RESULTADO == "confirmado"')['PROF_SAUDE'].value_counts()
+meusDados.query('RESULTADO == "descartado" or RESULTADO == "confirmado"')['FEBRE'].value_counts()
+meusDados.query('RESULTADO == "descartado" or RESULTADO == "confirmado"')['TOSSE'].value_counts()
+meusDados.query('RESULTADO == "descartado" or RESULTADO == "confirmado"')['DOR_GARGANTA'].value_counts()
+meusDados.query('RESULTADO == "descartado" or RESULTADO == "confirmado"')['DISPINEIA'].value_counts()
+
+#Exclui registros com sintomas 'missing'
+#meusDados = meusDados[meusDados.FEBRE != 'missing']
+#meusDados = meusDados[meusDados.DOR_GARGANTA != 'missing']
+#meusDados = meusDados[meusDados.TOSSE != 'missing']
+#meusDados = meusDados[meusDados.DISPINEIA != 'missing']
+#meusDados.shape
 
 #Conta qtos Territorios a base possui
 meusDados['TERRITORIO'].value_counts()
@@ -52,9 +70,11 @@ meusDados['TERRITORIO'].describe()
 
 #Transforma str para date
 meusDados['INICIO_SINTOMAS'] = pd.to_datetime(meusDados['INICIO_SINTOMAS'], errors='coerce')
+meusDados['DATA_NOTIFICACAO'] = pd.to_datetime(meusDados['DATA_NOTIFICACAO'], errors='coerce')
 
 #Exclui casos que não conseguiu converter a data
 meusDados = meusDados.dropna(subset=['INICIO_SINTOMAS'])
+meusDados = meusDados.dropna(subset=['DATA_NOTIFICACAO'])
 meusDados.shape
 
 ###Faz a totalização dos casos confirmados por Território ###
@@ -72,7 +92,7 @@ confirmadosPorTerritorio.head()
 confirmados14Dias = confirmadosPorTerritorio.groupby(['ID']).size()
 confirmados14Dias
 
-###Faz a totalização dos casos descartados por Bairro ###
+###Faz a totalização dos casos descartados por Território ###
 descartadosPorTerritorio = meusDados[['TERRITORIO', 'INICIO_SINTOMAS', 'RESULTADO']].query('RESULTADO == "descartado"')
 descartadosPorTerritorio = pd.merge(meusDados, descartadosPorTerritorio, how='left', on=['TERRITORIO', 'TERRITORIO'], suffixes=('_t1', '_t2'))
 
@@ -87,7 +107,7 @@ descartadosPorTerritorio.head()
 descartados14Dias = descartadosPorTerritorio.groupby(['ID']).size()
 descartados14Dias
 
-###Faz a totalização dos casos removidos por Bairro ###
+###Faz a totalização dos casos removidos por Território ###
 removidosPorTerritorio = meusDados[['TERRITORIO', 'INICIO_SINTOMAS', 'RESULTADO']].query('RESULTADO == "confirmado"')
 removidosPorTerritorio = pd.merge(meusDados, removidosPorTerritorio, how='left', on=['TERRITORIO', 'TERRITORIO'], suffixes=('_t1', '_t2'))
 
@@ -122,35 +142,89 @@ df.loc[df[df.Removidos_territorio.isnull()].index, ['Removidos_territorio']] = 0
 df['Tx_Confirmados_territorio_14dias'] = df['Confirmados_territorio_14dias'] / df['populacao']
 df['Tx_Removidos_territorio'] = df['Removidos_territorio'] / df['populacao']
 
-#Deixa na base apenas os registros com Resultado igual a 'confirmado' ou 'descartado'
-df = df.drop(df.query('RESULTADO != "confirmado" and RESULTADO != "descartado"').index)
-
-#Transforma Resultado em código
-df['RESULTADO'] = df['RESULTADO'].apply(lambda x: '0' if (x == 'descartado') else '1')
+#Exclui registros com Sexo 'missing'
+df = df.drop(df[df.SEXO == 'missing'].index)
 
 #Reset no índice para dar append nas colunas
 df = df.reset_index()
 
-#Transforma 'Data dos sintomas' em timestamp
+#Transforma Resultado em código
+df['RESULTADO'] = df['RESULTADO'].apply(lambda x: '0' if (x == 'descartado') else ('1' if x == 'confirmado' else '2'))
+
+#Transforma 'Início sintomas' em timestamp
 df['INICIO_SINTOMAS'].isnull().sum()
 df['INICIO_SINTOMAS'] = df['INICIO_SINTOMAS'].apply(lambda x: int(time.mktime(x.timetuple())))
 
+#Transforma 'Data notificação' em timestamp
+df['DATA_NOTIFICACAO'].isnull().sum()
+df['DATA_NOTIFICACAO'] = df['DATA_NOTIFICACAO'].apply(lambda x: int(time.mktime(x.timetuple())))
+
 # Formata a Idade com duas casas decimais
 df['IDADE'] = df['IDADE'].map('{:,.2f}'.format)
-
-#Exclui registros com Sexo 'missing'
-df = df.drop(df[df.SEXO == 'missing'].index)
 
 #Transforma Sexo em código
 df['SEXO'] = df['SEXO'].apply(lambda x: '0' if (x == 'f') else '1')
 
 #Transforma Territorio em hash
 len(df.groupby('TERRITORIO').size())
-fh = FeatureHasher(n_features=10, input_type='string')
+fh = FeatureHasher(n_features=20, input_type='string')
 hashTerritorio = fh.fit_transform(df['TERRITORIO'])
-dfTerritorio = pd.DataFrame(fh.fit_transform(df['TERRITORIO']).toarray(), columns=['hf0', 'hf1', 
-                            'hf2', 'hf3', 'hf4', 'hf5', 'hf6', 'hf7', 'hf8', 'hf9'])
+dfTerritorio = pd.DataFrame(fh.fit_transform(df['TERRITORIO']).toarray(), 
+                            columns=['hf0', 'hf1', 'hf2', 'hf3', 'hf4', 'hf5', 'hf6', 'hf7', 'hf8', 'hf9',
+                                     'hf10', 'hf11', 'hf12', 'hf13', 'hf14', 'hf15', 'hf16', 'hf17', 'hf18', 'hf19'])
 df[dfTerritorio.columns] = dfTerritorio
+
+#Transforma Subterritorio em hash
+len(df.groupby('SUBTERRITORIO').size())
+fh = FeatureHasher(n_features=20, input_type='string')
+hashTerritorio = fh.fit_transform(df['SUBTERRITORIO'])
+dfSubterritorio = pd.DataFrame(fh.fit_transform(df['SUBTERRITORIO']).toarray(), 
+                               columns=['st0', 'st1', 'st2', 'st3', 'st4', 'st5', 'st6', 'st7', 'st8', 'st9', 
+                                        'st10', 'st11', 'st12', 'st13', 'st14', 'st15', 'st16', 'st17', 'st18', 'st19'])
+df[dfSubterritorio.columns] = dfSubterritorio
+
+#Transforma 'Profissional saúde' em código
+len(df.groupby('PROF_SAUDE').size())
+df.groupby('PROF_SAUDE').size()
+dfProfissionalSaude = pd.DataFrame(preprocessing.OneHotEncoder().fit_transform(df['PROF_SAUDE'].
+                                   to_frame()).toarray(), columns=['ps0', 'ps1', 'ps2'])
+#df[dfProfissionalSaude.columns] = dfProfissionalSaude
+
+#Transforma 'Dor garganta' em código
+len(df.groupby('DOR_GARGANTA').size())
+df.groupby('DOR_GARGANTA').size()
+dfDorGarganta = pd.DataFrame(preprocessing.OneHotEncoder().fit_transform(df['DOR_GARGANTA'].
+                             to_frame()).toarray(), columns=['dg0', 'dg1', 'dg2'])
+#df[dfDorGarganta.columns] = dfDorGarganta
+
+#Transforma 'Dispinéia' em código
+len(df.groupby('DISPINEIA').size())
+df.groupby('DISPINEIA').size()
+dfDispineia = pd.DataFrame(preprocessing.OneHotEncoder().fit_transform(df['DISPINEIA'].to_frame()).
+                           toarray(), columns=['dp0', 'dp1', 'dp1'])
+#df[dfDispineia.columns] = dfDispineia
+
+#Transforma 'Febre' em código
+len(df.groupby('FEBRE').size())
+df.groupby('FEBRE').size()
+dfFebre = pd.DataFrame(preprocessing.OneHotEncoder().fit_transform(df['FEBRE'].to_frame()).
+                       toarray(), columns=['fb0', 'fb1', 'fb2'])
+#df[dfFebre.columns] = dfFebre
+
+#Transforma 'Tosse' em código
+len(df.groupby('TOSSE').size())
+df.groupby('TOSSE').size()
+dfTosse = pd.DataFrame(preprocessing.OneHotEncoder().fit_transform(df['TOSSE'].to_frame()).
+                       toarray(), columns=['ts0', 'ts1', 'ts2'])
+#df[dfTosse.columns] = dfTosse
+
+#Transforma 'Tipo exame' em código
+len(df.groupby('TIPO_EXAME').size())
+df['TIPO_EXAME'].value_counts()
+enc = preprocessing.OneHotEncoder()
+dfTipoExame = pd.DataFrame(preprocessing.OneHotEncoder().fit_transform(df['TIPO_EXAME'].to_frame()).
+                           toarray(), columns=['te0', 'te1', 'te2', 'te3', 'te4'])
+#df[dfTipoExame.columns] = dfTipoExame
 
 #Transforma Raça em código
 len(df.groupby('RACA_COR').size())
@@ -160,6 +234,14 @@ dfRacaCor = pd.DataFrame(preprocessing.OneHotEncoder().fit_transform(df['RACA_CO
                          toarray(), columns=['rc0', 'rc1', 'rc2', 'rc3', 'rc4'])
 df[dfRacaCor.columns] = dfRacaCor
 
+#Transforma 'Faixa etária' em código
+len(df.groupby('FAIXA_ETARIA').size())
+df['FAIXA_ETARIA'].value_counts()
+enc = preprocessing.OneHotEncoder()
+dfFaixaEtaria = pd.DataFrame(preprocessing.OneHotEncoder().fit_transform(df['FAIXA_ETARIA'].
+                             to_frame()).toarray(), columns=['fe0', 'fe1', 'fe2', 'fe3', 'fe4', 'fe5'])
+df[dfFaixaEtaria.columns] = dfFaixaEtaria
+
 #Transforma Triagem em código
 len(df.groupby('TRIAGEM').size())
 df.groupby('TRIAGEM').size()
@@ -168,6 +250,7 @@ dfTriagem = pd.DataFrame(preprocessing.OneHotEncoder().fit_transform(df['TRIAGEM
 df[dfTriagem.columns] = dfTriagem
 
 #Retira algumas colunas
-df = df.drop(columns=['index', 'ID', 'MUNICIPIO', 'TERRITORIO', 'SUBTERRITORIO', 'TRIAGEM', 
-                      'FAIXA_ETARIA', 'RACA_COR'])
+df = df.drop(columns=['index', 'ID', 'TERRITORIO', 'SUBTERRITORIO', 'TRIAGEM', 'FAIXA_ETARIA', 
+                      'RACA_COR', 'PROF_SAUDE', 'DOR_GARGANTA', 'DISPINEIA', 'FEBRE', 'TOSSE', 
+                      'TIPO_EXAME'])
 df.to_csv('Dados/novo_covid_ajustado.csv', index=False, header=True)

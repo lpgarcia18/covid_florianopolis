@@ -1,25 +1,42 @@
-# -*- coding: utf-8 -*-
 """
 Created on Mon Apr 20 16:48:01 2020
 
 @author: andre-goncalves
+@version:
+    Implementação Validação Cruzada Aninhada
+    Retirada do Permutation Selection
 """
 
 import pandas as pd
 import numpy as np
-from imblearn.over_sampling import SMOTE
+from imblearn.over_sampling import SMOTE, BorderlineSMOTE
+from imblearn.combine import SMOTEENN, SMOTETomek
+from imblearn.over_sampling import RandomOverSampler
 from sklearn.preprocessing import MinMaxScaler
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.inspection import permutation_importance
-from sklearn.model_selection import GridSearchCV
+from category_encoders import OneHotEncoder
+from sklearn.impute import SimpleImputer
+
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import StratifiedKFold
+
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.feature_selection import RFECV
+from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
+
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import classification_report
-from sklearn.metrics import accuracy_score
 
 #Faz a leitura da base
-df = pd.read_csv("Dados/novo_covid_ajustado.csv")
+df = pd.read_csv("Dados/novo_covid_ajustado_semsintomas.csv")
+df['RESULTADO'].value_counts()
+
+#Separa a base que está aguardando resultado para predição
+dfFuturo = df.query('RESULTADO == 2')
+dfFuturo.shape
+
+#Deixa na base de processamento apenas os registros com resultado
+df = df.query('RESULTADO == 0 or RESULTADO == 1')
+df.shape
 
 #Definindo x, y
 features = df.columns.difference(['RESULTADO'])
@@ -31,8 +48,11 @@ normalizador = MinMaxScaler(feature_range=(0, 1))
 normalizador.fit(x)
 x.values[:] = normalizador.transform(x)
 
+#Definição do ramdom_state
+ramdomState=14659
+
 #Separa base treinamento e teste
-xTreino, xTeste, yTreino, yTeste = train_test_split(x, y, stratify=y, train_size=0.7, random_state=1986)
+xTreino, xTeste, yTreino, yTeste = train_test_split(x, y, train_size=0.7, stratify=y, shuffle=True, random_state=ramdomState)
 
 #Balanceamento
 treino = xTreino.join(yTreino)
@@ -50,103 +70,117 @@ dfConfirmados = treino[treino['RESULTADO'] == 1] #Separa a base de confirmados
 
 #Over sampling
 #print('\nOver Sampling')
-#dfConfirmadosOver = dfConfirmados.sample(qtdeDescartados, replace=True)
+#dfConfirmadosOver = dfConfirmados.sample(qtdeDescartados, replace=True, random_state=ramdomState)
 #dfOver = pd.concat([dfDescartados, dfConfirmadosOver], axis=0)
 #xTreino = dfOver[features].values
 #yTreino = dfOver['RESULTADO'].values
 
+#Random Over sampling
+#print('\nRandom Over Sampling')
+#ros = RandomOverSampler(random_state=ramdomState)
+#xTreino, yTreino = ros.fit_resample(treino[features], treino['RESULTADO'])
+#xTreino = xTreino.values
+#yTreino = yTreino.values
+
 #Smote sampling
-print('\nSmote Sampling')
-oversample = SMOTE()
-xTreino, yTreino = oversample.fit_resample(treino[features], treino['RESULTADO'])
+#print('\nSmote Sampling')
+#smote = SMOTE(random_state=ramdomState)
+#xTreino, yTreino = smote.fit_resample(treino[features], treino['RESULTADO'])
+#xTreino = xTreino.values
+#yTreino = yTreino.values
+
+#Borderline Smote sampling
+print('\nBorderline Smote Sampling')
+borderlineSmote = BorderlineSMOTE(random_state=ramdomState)
+xTreino, yTreino = borderlineSmote.fit_resample(treino[features], treino['RESULTADO'])
 xTreino = xTreino.values
 yTreino = yTreino.values
 
-#Define o classificador
-classifier = RandomForestClassifier(class_weight="balanced", random_state=1986)
+#SmoteEEN sampling
+#print('\nSMOTEENN Sampling')
+#smoteENN = SMOTEENN(random_state=ramdomState)
+#xTreino, yTreino = smoteENN.fit_resample(treino[features], treino['RESULTADO'])
+#xTreino = xTreino.values
+#yTreino = yTreino.values
 
-#Treina com todos registros
-classifier.fit(xTreino, yTreino) 
-
-#Define o scoring
-scoring = ['accuracy', 'balanced_accuracy', 'average_precision', 'recall', 'jaccard']
-score = 'average_precision'
-
-#Permutation Importance
-print('\nPermutation Importance')
-pi = permutation_importance(classifier, x, y, scoring=score, n_jobs=3, random_state=1986)
-
-#Restringe as features
-indFeatures = np.where((pi.importances_mean * 1000) >= 0.001)[0]
-for i in pi.importances_mean[indFeatures].argsort()[::-1]:
-    print('%s: %.2f' % (features[indFeatures[i]], pi.importances_mean[indFeatures[i]] * 1000))
-
-xTreino = xTreino[:, indFeatures]
-xTeste = xTeste[xTeste.columns[indFeatures]]
-print('Qtde features selecionadas: ', len(xTeste.columns))
+#SmoteTomek sampling
+#print('\nSmoteTomek Sampling')
+#smoteTomek = SMOTETomek(random_state=ramdomState)
+#xTreino, yTreino = smoteTomek.fit_resample(treino[features], treino['RESULTADO'])
+#xTreino = xTreino.values
+#yTreino = yTreino.values
 
 #K-fold
-print('\n========== TUNING PARAMETERS ==========')
-arrayYReal = []
-arrayYPrediction = []
-arrayAcuracia = []
-arrayConfusion = np.array([[0, 0], [0, 0]])
+print('\n========== VALIDAÇÃO CRUZADA ANINHADA ==========')
+#Define o score
+score = 'recall'
 
-kfold = StratifiedKFold(n_splits=5, shuffle=True, random_state=1986)
+#Validação cruzada com embaralhamento
+outerCV = StratifiedKFold(n_splits=5, shuffle=True, random_state=1)
+innerCV = StratifiedKFold(n_splits=5, shuffle=True, random_state=1)
 
-#Grid Search
 paramGrid = {
-        'criterion': ['entropy', 'gini'],
-        'n_estimators': [3, 25, 50, 100],
-        'max_depth': [None, 3, 5],
-        'min_samples_split': [2, 5],
-        'min_samples_leaf': [1, 3, 5],
-        'min_weight_fraction_leaf': [0, 2, 5],
-        'max_features': ['auto', 0.1, 0.2, 0.5],
-        'bootstrap': [False, True],
+        'estimator__criterion': ['entropy', 'gini'],
+        'estimator__n_estimators': [3, 25, 50, 100],
+        'estimator__max_depth': [None, 3, 5],
+        'estimator__min_samples_split': [2, 5],
+        'estimator__min_samples_leaf': [1, 3, 5],
+        'estimator__min_weight_fraction_leaf': [0, 0.5],
+        'estimator__max_features': ['auto', 0.1, 0.2, 0.5],
+        'estimator__bootstrap': [False, True],
         }
 
-#Faz o processamento de treinamento com Tuning e Feature Selection
-gridSearch = GridSearchCV(estimator=classifier, param_grid=paramGrid, scoring=scoring, refit=score, n_jobs=3)
-gridSearch.fit(xTreino, yTreino)
+arrayGridSearch = []
+arrayMetrica = []
 
-classifier = gridSearch.best_estimator_
-
-print('\nClassificador:', classifier.__class__)
-print('\nScoring:', scoring)
-print('Score:', score)
-print('\nMelhor parametrização: %s' % gridSearch.best_params_)
-print('Melhor pontuação: %.2f' % gridSearch.best_score_)
-
-#K-fold
-print('\n========== VALIDAÇÃO MÉTODO K-FOLD ==========')
 arrayYReal = []
 arrayYPrediction = []
-arrayAcuracia = []
 arrayConfusion = np.array([[0, 0], [0, 0]])
-cv_iter = kfold.split(xTreino, yTreino)
+
+cv_iter = outerCV.split(xTreino, yTreino)
 for treino, teste in cv_iter:
-    #Etapa de treinamento
-    classifier.fit(xTreino[treino], yTreino[treino])
+    #Feature Selection nas mesmas condições de classificador e folders
+    rfecv = RFECV(estimator=RandomForestClassifier(class_weight="balanced", random_state=ramdomState), step=0.05, min_features_to_select=2, cv=innerCV, scoring=score)
     
+    gridSearch = RandomizedSearchCV(rfecv, param_distributions=paramGrid, cv=innerCV, scoring=score, n_iter=20, n_jobs=-1)
+    gridSearch.fit(xTreino[treino], yTreino[treino])
+    arrayGridSearch = np.append(arrayGridSearch, gridSearch)
+
+    classifier = gridSearch.best_estimator_
+    arrayMetrica = np.append(arrayMetrica, gridSearch.best_score_)
+
     #Etapa de predição
     yPrediction = classifier.predict(xTreino[teste])
-    
-    arrayYReal = np.append(arrayYReal, yTreino[teste])
-    arrayYPrediction = np.append(arrayYPrediction, yPrediction)
-    
-    arrayConfusion += confusion_matrix(yTreino[teste], yPrediction, labels=[0, 1])
-    arrayAcuracia.append(accuracy_score(yTreino[teste], yPrediction))
 
-print(pd.DataFrame(arrayConfusion, index=['real:descartado', 'real:confirmado'], 
-                   columns=['pred:descartado', 'pred:confirmado']))
+    arrayYReal = np.append(arrayYReal, yTreino[teste])
+    arrayYPrediction = np.append(arrayYPrediction, yPrediction)    
+    arrayConfusion += confusion_matrix(yTreino[teste], yPrediction, labels=[0, 1])
+
+#Escolhe o melhor classificador
+melhorGridSearch = arrayGridSearch[np.argsort(arrayMetrica)[::-1][0]]
+
+print('\nClassificador:', melhorGridSearch.best_estimator_.estimator.__class__)
+print('Score:', score)
+print('\nMelhor parametrização: %s' % melhorGridSearch.best_params_)
+print('Melhor pontuação: %.2f' % melhorGridSearch.best_score_)
+
+print("\n", pd.DataFrame(arrayConfusion, index=['real:descartado', 'real:confirmado'], 
+                         columns=['pred:descartado', 'pred:confirmado']))
 
 print("\n(TN, FP, FN, TP): %s \n" % arrayConfusion.ravel())
 print(classification_report(arrayYReal, arrayYPrediction, labels=[0, 1]))
 
 #Validação 
 print('\n========== TESTE ==========')
+estimator = melhorGridSearch.best_estimator_
+
+#Faz o corte nas features, deixando apenas as mais importantes
+indFeatures = estimator.get_support(1)
+xTreino = xTreino[:, indFeatures]
+xTeste = xTeste[xTeste.columns[indFeatures]]
+
 #Etapa de treinamento
+classifier = estimator.estimator
 classifier.fit(xTreino, yTreino)
 
 #Etapa de predição
@@ -160,3 +194,11 @@ print(pd.DataFrame(cm, index=['real:descartado', 'real:confirmado'],
 print("\n(TN, FP, FN, TP): %s \n" % cm.ravel())
 
 print(classification_report(yTeste, yPrediction, labels=[0, 1]))
+
+print('\n========== RESUMO RFECV ==========')
+#Mostra a quantidade de features selecionadas
+print('Qtde features selecionadas: ', estimator.n_features_)
+
+##Exibe as features selecionadas
+for contador in range(len(indFeatures)):
+    print(xTeste.columns[contador], np.absolute(classifier.feature_importances_[contador]))

@@ -19,7 +19,7 @@ from sklearn.impute import SimpleImputer
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import StratifiedKFold
 
-from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.svm import SVC
 from sklearn.feature_selection import RFECV
 from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 
@@ -120,11 +120,12 @@ outerCV = StratifiedKFold(n_splits=5, shuffle=True, random_state=1)
 innerCV = StratifiedKFold(n_splits=5, shuffle=True, random_state=1)
 
 paramGrid = {
-        'estimator__loss': ['deviance', 'exponential'],
-        'estimator__learning_rate': [0.1, 0.5],
-        'estimator__n_estimators': [5, 25],
-        'estimator__subsample': [0.5, 1],
-        'estimator__criterion': ['friedman_mse', 'mse', 'mae']
+        'estimator__C': [0.025, 0.05, 1.0],
+        'estimator__degree': [3, 10, 25],
+        'estimator__gamma': ['scale', 'auto', 1, 2],
+        'estimator__shrinking': [True, False],
+        'estimator__probability': [False, True],
+        'estimator__decision_function_shape': ['ovo', 'ovr']
         }
 
 arrayGridSearch = []
@@ -137,7 +138,7 @@ arrayConfusion = np.array([[0, 0], [0, 0]])
 cv_iter = outerCV.split(xTreino, yTreino)
 for treino, teste in cv_iter:
     #Feature Selection nas mesmas condições de classificador e folders
-    rfecv = RFECV(estimator=GradientBoostingClassifier(random_state=ramdomState), step=1, min_features_to_select=2, cv=innerCV, scoring=score)
+    rfecv = RFECV(estimator=SVC(class_weight="balanced", random_state=ramdomState), step=1, min_features_to_select=2, cv=innerCV, scoring=score)
     
     gridSearch = RandomizedSearchCV(rfecv, param_distributions=paramGrid, cv=innerCV, scoring=score, n_iter=20, n_jobs=-1)
     gridSearch.fit(xTreino[treino], yTreino[treino])
