@@ -11,6 +11,17 @@ library(tidyverse)
 covid <- read_csv("dados/investigacao_ve_nova_nova.csv")
 
 
+# Tempo do inicio de sintomas até liberacao de resultados
+tempo <- covid
+tempo$INIC_NOT <- as.Date(tempo$`Data da notificação`, format = "%d/%m/%Y") - as.Date(tempo$`Data do início dos sintomas`, format = "%d/%m/%Y")
+tempo$NOT_RESULT <- as.Date(tempo$`Data da liberação do resultado`, format = "%d/%m/%Y") - as.Date(tempo$`Data da notificação`, format = "%d/%m/%Y")
+tempo <- subset(tempo, tempo$INIC_NOT >= 0)
+tempo <- subset(tempo, tempo$NOT_RESULT >= 0)
+median(tempo$INIC_NOT, na.rm = T)
+median(tempo$NOT_RESULT, na.rm = T)
+
+
+
 # Transformando base ------------------------------------------------------
 # Criando ID
 covid <- mutate(covid, ID = rownames(covid))
@@ -80,6 +91,9 @@ covid$`Data de nascimento` <- NULL
 # covid$`País de origem`<- ifelse(covid$`País de origem` == `brasil`, `brasil`,
 #        				ifelse(is.na(covid$`País de origem`), ``, `estrangeiro`))
 
+
+covid <- subset(covid, covid$`Data da notificação` >= as.Date("2020-04-14"))
+covid <- subset(covid, covid$`Data da notificação` <= as.Date("2020-06-02"))
 
 
 # Exportando base ---------------------------------------------------------

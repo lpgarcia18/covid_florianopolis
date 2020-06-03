@@ -381,12 +381,6 @@ covid$`INFECTADOS_TERRITORIO` <-fct_explicit_na(covid$`INFECTADOS_TERRITORIO`, "
 
 covid$`Data da notificação` <- as.Date(covid$`Data da notificação`, format = "%Y-%m-%d")
 
-## Com a quantidade de missim em Sexo e Idade é pequeno esses dados foram retirados para que não haja problemas na paralelização
-covid <- subset(covid, covid$Sexo != "missing")
-covid <- subset(covid, covid$IDADE != "missing")
-
-
-
 
 
 # Merge das bases ---------------------------------------------------------
@@ -554,6 +548,67 @@ covid[,c(123:144)] <- apply(covid[,c(123:144)], 2,            # Specify own func
                     function(x) as.numeric(as.character(x)))
 covid$PERC_ESC_10_MENOS <- rowSums(covid[,c(123:135)])/rowSums(covid[,c(123:144)])
 
+
+# Transformando base ------------------------------------------------------
+covid$ID <- as.factor(covid$ID)
+covid$PROF_SAUDE <-  as.factor(covid$PROF_SAUDE)
+covid$DOR_GARGANTA <- as.factor(covid$DOR_GARGANTA)
+covid$DISPINEIA <- as.factor(covid$DISPINEIA)
+covid$FEBRE <- as.factor(covid$FEBRE)
+covid$TOSSE <- as.factor(covid$TOSSE)
+covid$TIPO_EXAME <-as.factor(covid$TIPO_EXAME)
+covid$RESULTADO <- as.factor(covid$RESULTADO)
+covid$TERRITORIO <-as.factor(covid$TERRITORIO)
+covid$SEXO <-as.factor(covid$SEXO)
+covid$SUBTERRITORIO <-as.factor(covid$SUBTERRITORIO)
+covid$TRIAGEM <-as.factor(covid$TRIAGEM)
+covid$RACA_COR <-as.factor(covid$RACA_COR)
+covid$FAIXA_ETARIA <-as.factor(covid$FAIXA_ETARIA)
+covid$INICIO_SINTOMAS <-  as.numeric(covid$INICIO_SINTOMAS)#Transformando em número, pois o learner do mlr não trabalha com data
+covid$DATA_NOTIFICACAO <- as.numeric(covid$DATA_NOTIFICACAO)#Transformando em número, pois o learner do mlr não trabalha com data
+
+
+# Formação das bases de treino, teste e predição --------------------------
+train_test_base <- subset(covid, covid$RESULTADO == "descartado" |
+			  	covid$RESULTADO == "confirmado")
+train_test_base$RESULTADO <- factor(train_test_base$RESULTADO, levels = c("confirmado", "descartado"))
+summary(train_test_base)
+
+#Base para predição
+predic_base <- subset(covid, !(covid$RESULTADO %in% c("confirmado", "descartado")))
+summary(predic_base)
+
+#Analisando distribuição das variáveis entre a base de treino_teste e a base de predição
+#Variáveis com muita diferença serão excluídas, pois não hã suporte na base de predição
+train_test_base$TIPO <- "train_test"
+predic_base$TIPO <- "predict"
+
+base_comp <- rbind(train_test_base, predic_base) %>% as.data.frame()
+rowPerc(table(base_comp$TIPO, base_comp$TERRITORIO))
+rowPerc(table(base_comp$TIPO, base_comp$PROF_SAUDE)) # Retirar por estar muito desbalanceado entre as duas bases
+rowPerc(table(base_comp$TIPO, base_comp$SEXO))
+rowPerc(table(base_comp$TIPO, base_comp$DATA_NOTIFICACAO))
+rowPerc(table(base_comp$TIPO, base_comp$DOR_GARGANTA)) # Retirar por estar muito desbalanceado entre as duas bases
+rowPerc(table(base_comp$TIPO, base_comp$DISPINEIA)) # Retirar por estar muito desbalanceado entre as duas bases
+rowPerc(table(base_comp$TIPO, base_comp$FEBRE)) # Retirar por estar muito desbalanceado entre as duas bases
+rowPerc(table(base_comp$TIPO, base_comp$TOSSE)) # Retirar por estar muito desbalanceado entre as duas bases
+rowPerc(table(base_comp$TIPO, base_comp$RESULTADO))
+rowPerc(table(base_comp$TIPO, base_comp$TIPO_EXAME)) # Retirar por estar muito desbalanceado entre as duas bases
+rowPerc(table(base_comp$TIPO, base_comp$IDADE))
+rowPerc(table(base_comp$TIPO, base_comp$FAIXA_ETARIA))
+rowPerc(table(base_comp$TIPO, base_comp$TRIAGEM))
+rowPerc(table(base_comp$TIPO, base_comp$INFECTADOS_TERRITORIO))
+rowPerc(table(base_comp$TIPO, base_comp$TX_INFECTADOS_TERRITORIO))
+
+
+covid$PROF_SAUDE <- NULL
+covid$DOR_GARGANTA <- NULL
+covid$DISPINEIA <- NULL
+covid$FEBRE <- NULL
+covid$TOSSE <- NULL
+covid$TIPO_EXAME <- NULL
+covid$SUBTERRITORIO <-NULL
+covid$TRIAGEM <- NULL
 
 # Exportando base ---------------------------------------------------------
 write.csv(covid, "dados/covid_ajustado.csv", row.names = F, fileEncoding = "UTF-8")
