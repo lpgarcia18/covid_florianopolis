@@ -21,11 +21,9 @@ covid <- read_csv("dados/covid_ajustado.csv")
 
 # Transformando base ------------------------------------------------------
 covid$ID <- as.factor(covid$ID)
-covid$PROF_SAUDE <-  as.factor(covid$PROF_SAUDE)
 covid$RESULTADO <- as.factor(covid$RESULTADO)
 covid$TERRITORIO <-as.factor(covid$TERRITORIO)
 covid$SEXO <-as.factor(covid$SEXO)
-covid$TRIAGEM <-as.factor(covid$TRIAGEM)
 covid$RACA_COR <-as.factor(covid$RACA_COR)
 covid$FAIXA_ETARIA <-as.factor(covid$FAIXA_ETARIA)
 covid$INICIO_SINTOMAS <-  as.numeric(covid$INICIO_SINTOMAS)#Transformando em número, pois o learner do mlr não trabalha com data
