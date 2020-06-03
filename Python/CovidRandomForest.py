@@ -20,6 +20,15 @@ from sklearn.metrics import accuracy_score
 
 #Faz a leitura da base
 df = pd.read_csv("Dados/novo_covid_ajustado.csv")
+df['RESULTADO'].value_counts()
+
+#Separa a base que está aguardando resultado para predição
+dfFuturo = df.query('RESULTADO == 2')
+dfFuturo.shape
+
+#Deixa na base de processamento apenas os registros com resultado
+df = df.query('RESULTADO == 0 or RESULTADO == 1')
+df.shape
 
 #Definindo x, y
 features = df.columns.difference(['RESULTADO'])
@@ -32,7 +41,7 @@ normalizador.fit(x)
 x.values[:] = normalizador.transform(x)
 
 #Separa base treinamento e teste
-xTreino, xTeste, yTreino, yTeste = train_test_split(x, y, stratify=y, train_size=0.7, random_state=1986)
+xTreino, xTeste, yTreino, yTeste = train_test_split(x, y, train_size=0.7, stratify=y, shuffle=True, random_state=1)
 
 #Balanceamento
 treino = xTreino.join(yTreino)
@@ -50,40 +59,39 @@ dfConfirmados = treino[treino['RESULTADO'] == 1] #Separa a base de confirmados
 
 #Over sampling
 #print('\nOver Sampling')
-#dfConfirmadosOver = dfConfirmados.sample(qtdeDescartados, replace=True)
+#dfConfirmadosOver = dfConfirmados.sample(qtdeDescartados, replace=True, random_state=1)
 #dfOver = pd.concat([dfDescartados, dfConfirmadosOver], axis=0)
 #xTreino = dfOver[features].values
 #yTreino = dfOver['RESULTADO'].values
 
 #Smote sampling
 print('\nSmote Sampling')
-oversample = SMOTE()
-xTreino, yTreino = oversample.fit_resample(treino[features], treino['RESULTADO'])
+smote = SMOTE(random_state=1)
+xTreino, yTreino = smote.fit_resample(treino[features], treino['RESULTADO'])
 xTreino = xTreino.values
 yTreino = yTreino.values
 
 #Define o classificador
-classifier = RandomForestClassifier(class_weight="balanced", random_state=1986)
+classifier = RandomForestClassifier(class_weight="balanced", random_state=1)
 
 #Treina com todos registros
 classifier.fit(xTreino, yTreino) 
 
 #Define o scoring
-scoring = ['accuracy', 'balanced_accuracy', 'average_precision', 'recall', 'jaccard']
-score = 'average_precision'
+score = 'recall'
 
 #Permutation Importance
-print('\nPermutation Importance')
-pi = permutation_importance(classifier, x, y, scoring=score, n_jobs=3, random_state=1986)
+#print('\nPermutation Importance')
+#pi = permutation_importance(classifier, x, y, scoring=score, n_jobs=3, random_state=1)
 
 #Restringe as features
-indFeatures = np.where((pi.importances_mean * 1000) >= 0.001)[0]
-for i in pi.importances_mean[indFeatures].argsort()[::-1]:
-    print('%s: %.2f' % (features[indFeatures[i]], pi.importances_mean[indFeatures[i]] * 1000))
+#indFeatures = np.where((pi.importances_mean * 1000) >= 0.00001)[0]
+#for i in pi.importances_mean[indFeatures].argsort()[::-1]:
+#    print('%s: %.2f' % (features[indFeatures[i]], pi.importances_mean[indFeatures[i]] * 1000))
 
-xTreino = xTreino[:, indFeatures]
-xTeste = xTeste[xTeste.columns[indFeatures]]
-print('Qtde features selecionadas: ', len(xTeste.columns))
+#xTreino = xTreino[:, indFeatures]
+#xTeste = xTeste[xTeste.columns[indFeatures]]
+#print('Qtde features selecionadas: ', len(xTeste.columns))
 
 #K-fold
 print('\n========== TUNING PARAMETERS ==========')
@@ -91,8 +99,6 @@ arrayYReal = []
 arrayYPrediction = []
 arrayAcuracia = []
 arrayConfusion = np.array([[0, 0], [0, 0]])
-
-kfold = StratifiedKFold(n_splits=5, shuffle=True, random_state=1986)
 
 #Grid Search
 paramGrid = {
@@ -106,14 +112,16 @@ paramGrid = {
         'bootstrap': [False, True],
         }
 
+#Validação cruzada com embaralhamento
+kfold = StratifiedKFold(n_splits=5, shuffle=True, random_state=1)
+
 #Faz o processamento de treinamento com Tuning e Feature Selection
-gridSearch = GridSearchCV(estimator=classifier, param_grid=paramGrid, scoring=scoring, refit=score, n_jobs=3)
+gridSearch = GridSearchCV(estimator=classifier, param_grid=paramGrid, cv=kfold, scoring=score, n_jobs=3)
 gridSearch.fit(xTreino, yTreino)
 
 classifier = gridSearch.best_estimator_
 
 print('\nClassificador:', classifier.__class__)
-print('\nScoring:', scoring)
 print('Score:', score)
 print('\nMelhor parametrização: %s' % gridSearch.best_params_)
 print('Melhor pontuação: %.2f' % gridSearch.best_score_)
@@ -124,6 +132,7 @@ arrayYReal = []
 arrayYPrediction = []
 arrayAcuracia = []
 arrayConfusion = np.array([[0, 0], [0, 0]])
+
 cv_iter = kfold.split(xTreino, yTreino)
 for treino, teste in cv_iter:
     #Etapa de treinamento

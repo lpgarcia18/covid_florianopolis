@@ -7,6 +7,7 @@ Created on Mon Apr 20 16:48:01 2020
 
 import pandas as pd
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.inspection import permutation_importance
 from imblearn.over_sampling import SMOTE
@@ -18,6 +19,11 @@ df = pd.read_csv("Dados/novo_covid_ajustado.csv")
 features = df.columns.difference(['RESULTADO'])
 x = df[features]
 y = df['RESULTADO']
+
+#Normalização da base
+normalizador = MinMaxScaler(feature_range=(0, 1))
+normalizador.fit(x)
+x.values[:] = normalizador.transform(x)
 
 #Separa base treinamento e teste
 xTreino, xTeste, yTreino, yTeste = train_test_split(x, y, random_state=1986)
