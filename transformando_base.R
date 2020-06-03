@@ -11,6 +11,7 @@ library(reshape2)
 library(purrr)
 #devtools::install_github("tidyverse/googlesheets4")
 library(googlesheets4)
+library(tigerstats)
 
 # Funcões -----------------------------------------------------------------
 ## Ler as tabelas dentro da planilha de excel
